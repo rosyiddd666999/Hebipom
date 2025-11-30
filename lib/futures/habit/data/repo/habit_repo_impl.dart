@@ -12,19 +12,33 @@ class HabitRepoImpl implements HabitRepo {
 
   @override
   Future<List<Habit>> getAllHabits() async {
-    final habits = await db.habitIsars.where()
-      .sortByLastCompletedDate()
-      .thenByTimeReminderMinute()
-      .findAll();
+    final habits = await db.habitIsars.where().findAll();
 
-    // Auto-reset habits yang perlu direset
     for (var habit in habits) {
       await _processHabitReset(habit);
     }
 
-    // Fetch ulang setelah reset
     final updatedHabits = await db.habitIsars.where().findAll();
-    return updatedHabits.map((h) => h.toEntity()).toList();
+    final entities = updatedHabits.map((h) => h.toEntity()).toList();
+
+    entities.sort((a, b) {
+      if (a.isCompleted && !b.isCompleted) return -1;
+      if (!a.isCompleted && b.isCompleted) return 1;
+
+      if (a.isCompleted && b.isCompleted) {
+        if (a.lastCompletedDate == null && b.lastCompletedDate == null) {
+          return 0;
+        }
+        if (a.lastCompletedDate == null) return 1;
+        if (b.lastCompletedDate == null) return -1;
+        return b.lastCompletedDate!.compareTo(a.lastCompletedDate!);
+      }
+
+      final aMinutes = a.timeReminder.hour * 60 + a.timeReminder.minute;
+      final bMinutes = b.timeReminder.hour * 60 + b.timeReminder.minute;
+      return aMinutes.compareTo(bMinutes);
+    });
+    return entities;
   }
 
   /// Process reset habit berdasarkan kondisi

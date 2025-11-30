@@ -1,12 +1,10 @@
 import 'dart:io';
-
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-
 import '../../../main.dart';
 import '../../habit/domain/entity/habit.dart';
 import '../utils/habit_utils.dart';
@@ -236,33 +234,78 @@ class NotificationService {
   }
 
   Future<void> alertFiveHourBeforeResetStreak(List<Habit> habits) async {
-  for (final habit in habits) {
-    if (habit.lastCompletedDate == null) continue;
-    
-    // Cek apakah perlu reset
-    if (HabitUtils.shouldResetStreak(
-      habitFrequency: habit.habitFrequency,
-      lastCompletedDate: habit.lastCompletedDate,
-    )) {
-      // Hitung 5 jam sebelum reminder time
-      int alertHour = habit.timeReminder.hour - 5;
-      int alertMinute = habit.timeReminder.minute;
-      
-      // Handle hour negatif
-      if (alertHour < 0) {
-        alertHour += 24; // Mundur ke hari sebelumnya
+    for (final habit in habits) {
+      if (habit.lastCompletedDate == null || !habit.isCompleted) {
+        continue;
       }
-      
-      await scheduleNotification(
-        id: habit.id + 10000,
-        title: 'Peringatan Streak! 🔥',
-        body: 'Habitmu "${habit.name}" akan direset dalam 5 jam!',
-        hour: alertHour,
-        minute: alertMinute,
+
+      final shouldReset = HabitUtils.shouldResetStreak(
+        habitFrequency: habit.habitFrequency,
+        lastCompletedDate: habit.lastCompletedDate,
       );
+
+      if (!shouldReset) {
+        // Streak masih aman, cancel alert jika ada
+        await cancelNotification(habit.id + 10000);
+        continue;
+      }
+
+      final now = tz.TZDateTime.now(tz.local);
+      final lastDay = HabitUtils.normalizeToDay(habit.lastCompletedDate!);
+
+      tz.TZDateTime? deadlineTime;
+
+      switch (habit.habitFrequency) {
+        case 'daily':
+          deadlineTime = tz.TZDateTime(
+            tz.local,
+            now.year,
+            now.month,
+            now.day,
+          ).add(const Duration(days: 1));
+          break;
+        case 'thirdlyPerWeek':
+        case 'weekly':
+          deadlineTime = tz.TZDateTime(
+            tz.local,
+            lastDay.year,
+            lastDay.month,
+            lastDay.day,
+          ).add(const Duration(days: 7, hours: 23, minutes: 59));
+          break;
+        default:
+          continue;
+      }
+
+      final alertTime = deadlineTime.subtract(const Duration(hours: 5));
+
+      // Jika alert time sudah lewat atau terlalu dekat, kirim notifikasi sekarang
+      if (alertTime.isBefore(now)) {
+        // Notifikasi immediate jika sudah lewat
+        await notificationsPlugin.show(
+          habit.id + 10000,
+          '⚠️ Streak Dalam Bahaya!',
+          'Habitmu "${habit.name}" akan direset dalam ${deadlineTime.difference(now).inHours} jam!',
+          _notificationDetails(habit.id + 10000),
+        );
+        log('🚨 Sent immediate streak alert for habit "${habit.name}"');
+      } else {
+        try {
+          await notificationsPlugin.zonedSchedule(
+            habit.id + 10000,
+            '⚠️ Streak Dalam Bahaya!',
+            'Habitmu "${habit.name}" akan direset dalam 5 jam. Segera selesaikan!',
+            alertTime,
+            _notificationDetails(habit.id + 10000),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          );
+          log('✅ Scheduled streak alert for "${habit.name}" at $alertTime');
+        } catch (e) {
+          log('❌ Failed to schedule streak alert: $e');
+        }
+      }
     }
   }
-}
 
   Future<void> cancelNotification(int id) async {
     await notificationsPlugin.cancel(id);
