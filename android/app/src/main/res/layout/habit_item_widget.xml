@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="6dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <!-- AREA CHECKBOX -->
+    <LinearLayout
+        android:id="@+id/checkbox_container"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:padding="8dp">
+
+        <ImageView
+            android:id="@+id/habit_checkbox"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="TODO"
+            android:src="@drawable/checkbox_nonactive"
+            tools:ignore="ImageContrastCheck" />
+    </LinearLayout>
+
+    <!-- NAMA HABIT -->
+    <TextView
+        android:id="@+id/habit_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:maxLines="1"
+        android:textColor="#E7E7E7"
+        android:textSize="12sp" />
+
+    <!-- TIME REMINDER -->
+    <TextView
+        android:id="@+id/habit_time"
+        android:layout_width="38dp"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:textColor="#E7E7E7"
+        android:textSize="12sp" />
+
+</LinearLayout>
