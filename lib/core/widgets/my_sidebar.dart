@@ -81,7 +81,7 @@ class MySidebar extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  "HABIPOM",
+                  "HEBIPOM",
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 18,
@@ -98,6 +98,21 @@ class MySidebar extends StatelessWidget {
               child: Column(
                 children: [
                   _buildDivider(context),
+                  ListTile(
+                    onTap: () => context.goNamed('statistics'),
+                    leading: SvgPicture.asset(
+                      Theme.of(context).brightness == Brightness.light
+                          ? AppVectors.chartDark
+                          : AppVectors.chartLight,
+                      width: 24,
+                      height: 24,
+                    ),
+                    title: Text(
+                      'STATISTICS',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+
                   ListTile(
                     onTap: () => context.goNamed('theme'),
                     leading: SvgPicture.asset(
@@ -138,7 +153,7 @@ class MySidebar extends StatelessWidget {
                       height: 24,
                     ),
                     title: Text(
-                      'PERMISSIONS',
+                      'NOTIF\nPERMISSIONS',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),

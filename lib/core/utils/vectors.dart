@@ -11,6 +11,8 @@ class AppVectors {
   static const String historyLight = 'assets/vectors/clock_light.svg';
   static const String calenderDark = 'assets/vectors/calendar.svg';
   static const String calenderLight = 'assets/vectors/calendar_light.svg';
+  static const String chartDark = 'assets/vectors/chart.svg';
+  static const String chartLight = 'assets/vectors/chart_light.svg';
   static const String menu = 'assets/vectors/menu.svg';
   static const String moon = 'assets/vectors/moon.svg';
   static const String notification = 'assets/vectors/notification.svg';

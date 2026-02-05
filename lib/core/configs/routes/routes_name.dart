@@ -10,4 +10,5 @@ class RouteNames {
   static const String history = 'history';
   static const String theme = 'theme';
   static const String notificationPermissions = 'notification-permissions';
+  static const String statistics = 'statistics';
 }

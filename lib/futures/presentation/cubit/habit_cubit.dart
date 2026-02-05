@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hebipom/core/services/notivication_service.dart';
 import 'package:hebipom/futures/domain/repo/habit_repo.dart';
@@ -10,8 +11,20 @@ import '../../domain/entity/habit.dart';
 class HabitCubit extends Cubit<List<Habit>> {
   final HabitRepo habitRepo;
   final NotificationService notificationService;
+  static const platform = MethodChannel('com.example.hebipom/permissions');
+  
   HabitCubit(this.habitRepo, this.notificationService) : super([]) {
     loadHabits();
+    _setupMethodCallHandler();
+  }
+
+  void _setupMethodCallHandler() {
+    platform.setMethodCallHandler((call) async {
+      if (call.method == 'toggleHabit') {
+        final habitId = call.arguments['habitId'] as String;
+        await _toggleHabitFromWidget(habitId);
+      }
+    });
   }
 
   Future<void> loadHabits() async {
@@ -54,7 +67,6 @@ class HabitCubit extends Cubit<List<Habit>> {
     loadHabits();
   }
 
-  //! PERLU DIUPDATE
   Future<void> _updateWidget(List<Habit> habits) async {
     final habitsData = habits
         .map(
@@ -62,13 +74,29 @@ class HabitCubit extends Cubit<List<Habit>> {
             'id': h.id.toString(),
             'name': h.name,
             'isCompleted': h.isCompleted,
-            'timeReminder': '${h.timeReminder.hour}:${h.timeReminder.minute}',
+            'timeReminder': '${h.timeReminder.hour.toString().padLeft(2, '0')}:${h.timeReminder.minute.toString().padLeft(2, '0')}',
           },
         )
         .toList();
 
     await HomeWidget.saveWidgetData('habits_data', jsonEncode(habitsData));
-
     await HomeWidget.updateWidget(androidName: 'MyHomeWidget');
+  }
+
+  Future<void> _toggleHabitFromWidget(String habitIdStr) async {
+    try {
+      final habitId = int.parse(habitIdStr);
+      final habit = state.firstWhere((h) => h.id == habitId);
+      
+      if (habit.isCompleted) {
+        await markHabitAsNotCompleted(habitId);
+      } else {
+        await markHabitAsCompleted(habitId);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error toggling habit from widget: $e');
+      }
+    }
   }
 }

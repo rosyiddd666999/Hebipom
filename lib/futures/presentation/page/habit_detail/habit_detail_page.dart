@@ -9,13 +9,21 @@ import 'package:hebipom/core/widgets/my_button.dart';
 import 'package:hebipom/futures/presentation/widget/habit/edit_habit_page.dart';
 import 'package:intl/intl.dart';
 import 'package:hebipom/futures/presentation/cubit/habit_cubit.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../../../../core/utils/vectors.dart';
 import '../../../domain/entity/habit.dart';
 
-class HabitDetailPage extends StatelessWidget {
+class HabitDetailPage extends StatefulWidget {
   final Habit habit;
 
+  HabitDetailPage({super.key, required this.habit});
+
+  @override
+  State<HabitDetailPage> createState() => _HabitDetailPageState();
+}
+
+class _HabitDetailPageState extends State<HabitDetailPage> {
   final Map<String, String> lightCategories = {
     'study': AppVectors.studyLight,
     'work': AppVectors.workLight,
@@ -69,7 +77,8 @@ class HabitDetailPage extends StatelessWidget {
     '4': ThemeHabit.habitCompnentDarkVariant4,
   };
 
-  HabitDetailPage({super.key, required this.habit});
+  // State untuk filter chart
+  String _selectedPeriod = 'week'; // 'week' atau 'month'
 
   // Method untuk menghitung completion rate
   String _calculateCompletionRate(Habit habit) {
@@ -95,6 +104,53 @@ class HabitDetailPage extends StatelessWidget {
     return "${rate.toStringAsFixed(1)}%";
   }
 
+  // Method untuk generate data chart berdasarkan periode
+  List<FlSpot> _generateChartData(Habit habit) {
+    final now = DateTime.now();
+    final spots = <FlSpot>[];
+    
+    if (_selectedPeriod == 'week') {
+      // 7 hari terakhir
+      for (int i = 6; i >= 0; i--) {
+        final date = DateTime(now.year, now.month, now.day - i);
+
+        // Hitung completion rate kumulatif sampai hari tersebut
+        final completedUntilDate = habit.completedDates.where((d) => 
+            d.isBefore(date.add(const Duration(days: 1)))).length;
+        
+        final daysSinceStart = habit.completedDates.isEmpty 
+            ? 1 
+            : date.difference(habit.completedDates.first).inDays + 1;
+        
+        final rate = daysSinceStart > 0 
+            ? (completedUntilDate / daysSinceStart) * 100 
+            : 0.0;
+        
+        spots.add(FlSpot((6 - i).toDouble(), rate));
+      }
+    } else {
+      // 30 hari terakhir (dikelompokkan per 5 hari untuk readability)
+      for (int i = 25; i >= 0; i -= 5) {
+        final date = DateTime(now.year, now.month, now.day - i);
+        
+        final completedUntilDate = habit.completedDates.where((d) => 
+            d.isBefore(date.add(const Duration(days: 1)))).length;
+        
+        final daysSinceStart = habit.completedDates.isEmpty 
+            ? 1 
+            : date.difference(habit.completedDates.first).inDays + 1;
+        
+        final rate = daysSinceStart > 0 
+            ? (completedUntilDate / daysSinceStart) * 100 
+            : 0.0;
+        
+        spots.add(FlSpot(((25 - i) / 5).toDouble(), rate));
+      }
+    }
+    
+    return spots;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -104,8 +160,8 @@ class HabitDetailPage extends StatelessWidget {
       builder: (context, habits) {
         // Mencari data habit terbaru dari list state berdasarkan ID
         final currentHabit = habits.firstWhere(
-          (h) => h.id == habit.id,
-          orElse: () => habit,
+          (h) => h.id == widget.habit.id,
+          orElse: () => widget.habit,
         );
 
         return Scaffold(
@@ -126,7 +182,7 @@ class HabitDetailPage extends StatelessWidget {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (context) => EditHabitPage(habit: habit),
+                    builder: (context) => EditHabitPage(habit: widget.habit),
                   );
                 },
               ),
@@ -215,6 +271,7 @@ class HabitDetailPage extends StatelessWidget {
                               priorityTitles[currentHabit.priority]!,
                               priorityValues[currentHabit.priority]!,
                               true,
+                              currentHabit,
                             ),
                             const Divider(height: 30),
                             _buildInfoRow(
@@ -223,6 +280,7 @@ class HabitDetailPage extends StatelessWidget {
                               "Waktu Reminder",
                               currentHabit.timeReminder.format(context),
                               false,
+                              currentHabit,
                             ),
                             const Divider(height: 30),
                             _buildInfoRow(
@@ -231,6 +289,7 @@ class HabitDetailPage extends StatelessWidget {
                               "Frekuensi",
                               currentHabit.habitFrequency,
                               false,
+                              currentHabit,
                             ),
                             const Divider(height: 30),
                             _buildInfoRow(
@@ -243,12 +302,13 @@ class HabitDetailPage extends StatelessWidget {
                                     ).format(currentHabit.lastCompletedDate!)
                                   : "Belum pernah",
                               false,
+                              currentHabit,
                             ),
                           ],
                         ),
                       ),
 
-                      // SECTION STATISTIK BARU
+                      // SECTION STATISTIK BARU DENGAN CHART
                       const SizedBox(height: 20),
                       Text(
                         "STATISTICS",
@@ -256,24 +316,170 @@ class HabitDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Card Statistik
+                      // Card Statistik dengan Chart
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colorScheme.secondaryContainer.withOpacity(
-                            0.3,
-                          ),
+                          color: colorScheme.secondaryContainer.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: colorScheme.outlineVariant),
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Filter Toggle
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildPeriodButton(
+                                    context,
+                                    'Mingguan',
+                                    'week',
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildPeriodButton(
+                                    context,
+                                    'Bulanan',
+                                    'month',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            
+                            // Chart Title
+                            Text(
+                              "Completion Rate Trend",
+                              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Line Chart
+                            SizedBox(
+                              height: 200,
+                              child: LineChart(
+                                LineChartData(
+                                  gridData: FlGridData(
+                                    show: true,
+                                    drawVerticalLine: false,
+                                    horizontalInterval: 25,
+                                    getDrawingHorizontalLine: (value) {
+                                      return FlLine(
+                                        color: colorScheme.outlineVariant.withOpacity(0.3),
+                                        strokeWidth: 1,
+                                      );
+                                    },
+                                  ),
+                                  titlesData: FlTitlesData(
+                                    show: true,
+                                    rightTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    topTitles: const AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 30,
+                                        interval: 1,
+                                        getTitlesWidget: (value, meta) {
+                                          if (_selectedPeriod == 'week') {
+                                            // Label untuk 7 hari
+                                            final days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                                            if (value.toInt() >= 0 && value.toInt() < days.length) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(top: 8.0),
+                                                child: Text(
+                                                  days[value.toInt()],
+                                                  style: Theme.of(context).textTheme.bodySmall,
+                                                ),
+                                              );
+                                            }
+                                          } else {
+                                            // Label untuk 30 hari (per 5 hari)
+                                            final labels = ['D1', 'D6', 'D11', 'D16', 'D21', 'D26'];
+                                            if (value.toInt() >= 0 && value.toInt() < labels.length) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(top: 8.0),
+                                                child: Text(
+                                                  labels[value.toInt()],
+                                                  style: Theme.of(context).textTheme.bodySmall,
+                                                ),
+                                              );
+                                            }
+                                          }
+                                          return const SizedBox.shrink();
+                                        },
+                                      ),
+                                    ),
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 40,
+                                        interval: 25,
+                                        getTitlesWidget: (value, meta) {
+                                          return Text(
+                                            '${value.toInt()}%',
+                                            style: Theme.of(context).textTheme.bodySmall,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(
+                                    show: true,
+                                    border: Border.all(
+                                      color: colorScheme.outlineVariant.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  minX: 0,
+                                  maxX: _selectedPeriod == 'week' ? 6 : 5,
+                                  minY: 0,
+                                  maxY: 100,
+                                  lineBarsData: [
+                                    LineChartBarData(
+                                      spots: _generateChartData(currentHabit),
+                                      isCurved: true,
+                                      color: colorScheme.primary,
+                                      barWidth: 3,
+                                      isStrokeCapRound: true,
+                                      dotData: FlDotData(
+                                        show: true,
+                                        getDotPainter: (spot, percent, barData, index) {
+                                          return FlDotCirclePainter(
+                                            radius: 4,
+                                            color: colorScheme.primary,
+                                            strokeWidth: 2,
+                                            strokeColor: colorScheme.surface,
+                                          );
+                                        },
+                                      ),
+                                      belowBarData: BarAreaData(
+                                        show: true,
+                                        color: colorScheme.primary.withOpacity(0.1),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            const Divider(height: 30),
+                            
+                            // Statistik Numerik
                             _buildInfoRow(
                               context,
                               Icons.check_circle_outline_rounded,
                               "Total Hari Completed",
                               "${currentHabit.streak} hari",
                               false,
+                              currentHabit,
                             ),
                             const Divider(height: 30),
                             _buildInfoRow(
@@ -282,6 +488,7 @@ class HabitDetailPage extends StatelessWidget {
                               "Completion Rate",
                               _calculateCompletionRate(currentHabit),
                               false,
+                              currentHabit,
                             ),
                           ],
                         ),
@@ -347,6 +554,45 @@ class HabitDetailPage extends StatelessWidget {
     );
   }
 
+  // Widget untuk tombol filter periode
+  Widget _buildPeriodButton(BuildContext context, String label, String value) {
+    final isSelected = _selectedPeriod == value;
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPeriod = value;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? colorScheme.primary 
+              : colorScheme.surface.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected 
+                ? colorScheme.primary 
+                : colorScheme.outlineVariant,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+              color: isSelected 
+                  ? colorScheme.onPrimary 
+                  : colorScheme.onSurface,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // Helper Widget: Card Statistik
   Widget _buildStatCard(
     BuildContext context,
@@ -402,6 +648,7 @@ class HabitDetailPage extends StatelessWidget {
     String label,
     String value,
     bool isPriority,
+    Habit habit,
   ) {
     return Row(
       children: [

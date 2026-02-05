@@ -52,8 +52,8 @@ private fun updateAppWidget(
 ) {
     val views = RemoteViews(context.packageName, R.layout.my_home_widget)
 
-    val data = HomeWidgetPlugin.getData(context)
-    val habitsJson = data.getString("habits_data", null)
+    val prefs = HomeWidgetPlugin.getData(context)
+    val habitsJson = prefs.getString("habits_data", null)
 
     if (habitsJson != null) {
         val arr = JSONArray(habitsJson)
@@ -69,7 +69,7 @@ private fun updateAppWidget(
             val idHabit = obj.getString("id")
             val name = obj.getString("name")
             val isCompleted = obj.getBoolean("isCompleted")
-            val timeReminder = obj.getString("timeReminder") // HH:mm
+            val timeReminder = obj.getString("timeReminder")
 
             habitView.setTextViewText(R.id.habit_name, name.uppercase())
             habitView.setTextViewText(R.id.habit_time, timeReminder)
@@ -96,19 +96,21 @@ private fun updateAppWidget(
                 )
             }
 
-            val toggleIntent = Intent(context, MyHomeWidget::class.java).apply {
-                action = MyHomeWidget.ACTION_TOGGLE
-                putExtra(MyHomeWidget.EXTRA_ID, idHabit)
+            // GUNAKAN ACTION + EXTRA (bukan URL scheme)
+            val toggleIntent = Intent(context, MainActivity::class.java).apply {
+                action = "TOGGLE_HABIT_ACTION"
+                putExtra("habit_id", idHabit)
+                // PENTING: flag ini membuat activity tidak restart
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
 
-            val togglePI = PendingIntent.getBroadcast(
+            val togglePI = PendingIntent.getActivity(
                 context,
                 idHabit.hashCode(),
                 toggleIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            // klik pada CONTAINER
             habitView.setOnClickPendingIntent(R.id.checkbox_container, togglePI)
 
             views.addView(R.id.habits_container, habitView)

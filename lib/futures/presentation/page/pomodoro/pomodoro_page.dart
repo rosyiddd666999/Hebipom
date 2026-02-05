@@ -34,25 +34,14 @@ class _PomodoroPageState extends State<PomodoroPage> {
     return "$minutes:$seconds";
   }
 
-  // List<Duration> _generatePhases() {
-  //   List<Duration> phases = [];
-  //   for (int i = 0; i < _session; i++) {
-  //     phases.add(Duration(minutes: _timePomodoro));
-  //     if (i < _session - 1) {
-  //       phases.add(Duration(minutes: _timeSortBreak));
-  //     } else {
-  //       phases.add(Duration(minutes: _timeLongBreak));
-  //     }
-  //   }
-  //   return phases;
-  // }
-
   Future<void> _startPomodoro() async {
     final cubit = context.read<PomodoroTimerUiCubit>();
-    
+
+    final id32Bit = DateTime.now().millisecondsSinceEpoch & 0x7FFFFFFF;
+
     // 1. Buat Pomodoro baru
     final newPomodoro = Pomodoro(
-      id: DateTime.now().millisecondsSinceEpoch,
+      id: id32Bit,
       name: _selectedHabitName,
       habitId: _selectedHabitId,
       timePomodoro: _timePomodoro,
@@ -71,10 +60,7 @@ class _PomodoroPageState extends State<PomodoroPage> {
     await context.read<PomodoroCubit>().createPomodoro(newPomodoro);
 
     // 3. Start timer di cubit global
-    await cubit.startNewTimer(
-      Duration(minutes: _timePomodoro),
-      newPomodoro,
-    );
+    await cubit.startNewTimer(Duration(minutes: _timePomodoro), newPomodoro);
 
     // 4. Refresh UI
     if (mounted) {
@@ -93,19 +79,66 @@ class _PomodoroPageState extends State<PomodoroPage> {
         centerTitle: true,
         backgroundColor: Colors.transparent,
       ),
-      body: BlocBuilder<PomodoroTimerUiCubit, PomodoroTimerUiState>(
-        builder: (context, state) {
-          // SKENARIO 1 & 3: Tidak ada timer aktif → Tampilkan initial view
-          if (state is PomodoroTimerUiInitial || 
-              state is PomodoroTimerUiRunComplete) {
-            return _buildInitialView();
+      body: BlocListener<PomodoroTimerUiCubit, PomodoroTimerUiState>(
+        listener: (context, state) {
+          // Ketika pomodoro selesai secara otomatis
+          if (state is PomodoroTimerUiRunComplete) {
+            _handlePomodoroCompletion();
           }
-          
-          // SKENARIO 2: Timer sedang berjalan → Tampilkan timer view
-          return _buildTimerView();
         },
+        child: BlocBuilder<PomodoroTimerUiCubit, PomodoroTimerUiState>(
+          builder: (context, state) {
+            // SKENARIO 1 & 3: Tidak ada timer aktif → Tampilkan initial view
+            if (state is PomodoroTimerUiInitial ||
+                state is PomodoroTimerUiRunComplete) {
+              return _buildInitialView();
+            }
+
+            // SKENARIO 2: Timer sedang berjalan → Tampilkan timer view
+            return _buildTimerView();
+          },
+        ),
       ),
     );
+  }
+
+  // Method untuk handle completion (dipanggil otomatis via listener)
+  Future<void> _handlePomodoroCompletion() async {
+    // Mark habit as completed jika ada habit yang dipilih
+    if (_selectedHabitId != null) {
+      await context.read<HabitCubit>().markHabitAsCompleted(_selectedHabitId!);
+    }
+
+    // Show dialog notification
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Pomodoro Selesai'),
+          content: Text(
+            _selectedHabitId != null
+                ? 'Pomodoro untuk $_selectedHabitName selesai. Habit telah ditandai sebagai selesai.'
+                : 'Pomodoro selesai.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Reset selection
+    if (mounted) {
+      setState(() {
+        _selectedHabitId = null;
+        _selectedHabitName = 'Fokus';
+      });
+    }
   }
 
   // --- SETTINGS SHEET ---
@@ -276,11 +309,11 @@ class _PomodoroPageState extends State<PomodoroPage> {
                     child: Text(
                       'Set as Default',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: _selectedHabitId == null
-                                ? Theme.of(context).colorScheme.secondary
-                                : Colors.green.shade300,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: _selectedHabitId == null
+                            ? Theme.of(context).colorScheme.secondary
+                            : Colors.green.shade300,
+                      ),
                     ),
                   ),
                 ],
@@ -376,8 +409,8 @@ class _PomodoroPageState extends State<PomodoroPage> {
                         _selectedHabitName,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Icon(
@@ -415,8 +448,8 @@ class _PomodoroPageState extends State<PomodoroPage> {
         final phaseLabel = state.currentPhaseIndex % 2 == 0
             ? _selectedHabitName
             : (state.currentPhaseIndex == cubit.phases.length - 1
-                ? 'Istirahat Panjang'
-                : 'Istirahat Pendek');
+                  ? 'Istirahat Panjang'
+                  : 'Istirahat Pendek');
 
         final isCompleted = state is PomodoroTimerUiRunComplete;
 
@@ -437,17 +470,6 @@ class _PomodoroPageState extends State<PomodoroPage> {
 
         Future<void> completeAndReset() async {
           await cubit.forceComplete();
-          
-          if (mounted && _selectedHabitId != null) {
-            context.read<HabitCubit>().markHabitAsCompleted(_selectedHabitId!);
-          }
-
-          if (mounted) {
-            setState(() {
-              _selectedHabitId = null;
-              _selectedHabitName = 'Fokus';
-            });
-          }
         }
 
         final playPauseIcon = state.isRunning ? Icons.pause : Icons.play_arrow;
@@ -512,9 +534,7 @@ class _PomodoroPageState extends State<PomodoroPage> {
                         Text(
                           'Pomodoro untuk $_selectedHabitName Selesai!',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
+                          style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 32),
@@ -542,7 +562,9 @@ class _PomodoroPageState extends State<PomodoroPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         MyButton(
-                          onPressed: completeAndReset,
+                          onPressed: () {
+                            cubit.forceComplete();
+                          },
                           icon: const Icon(Icons.stop),
                           label: '',
                           isPrimaryColor: false,
@@ -557,29 +579,13 @@ class _PomodoroPageState extends State<PomodoroPage> {
                         MyButton(
                           onPressed: () {
                             if (isLastPhase) {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Pomodoro Selesai'),
-                                  content: Text(
-                                    _selectedHabitId != null
-                                        ? 'Pomodoro untuk $_selectedHabitName selesai. Habit telah ditandai sebagai selesai.'
-                                        : 'Pomodoro selesai.',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                      },
-                                      child: const Text('OK'),
-                                    ),
-                                  ],
-                                ),
-                              );
+                              completeAndReset();
                             }
                             cubit.skip();
                           },
-                          icon: Icon(isLastPhase ? Icons.check : Icons.skip_next),
+                          icon: Icon(
+                            isLastPhase ? Icons.check : Icons.skip_next,
+                          ),
                           label: '',
                           isPrimaryColor: false,
                         ),
@@ -610,8 +616,8 @@ class _PomodoroPageState extends State<PomodoroPage> {
                 'Atur Waktu',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(width: 8),
               SvgPicture.asset(
@@ -637,6 +643,7 @@ class _PomodoroPageState extends State<PomodoroPage> {
   }) {
     final cubit = context.read<PomodoroTimerUiCubit>();
     final isCompleted = remainingDuration == Duration.zero && !isInitialState;
+    
     final phaseColor = phaseIndex % 2 == 0
         ? Theme.of(context).colorScheme.primary
         : Theme.of(context).colorScheme.tertiary;
@@ -653,8 +660,9 @@ class _PomodoroPageState extends State<PomodoroPage> {
             child: CircularProgressIndicator(
               value: progress,
               strokeWidth: 5,
-              backgroundColor:
-                  Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(phaseColor),
             ),
           ),
@@ -664,18 +672,18 @@ class _PomodoroPageState extends State<PomodoroPage> {
               Text(
                 isCompleted ? "00:00" : formatDuration(remainingDuration),
                 style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 48,
-                      letterSpacing: 5.0,
-                    ),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 48,
+                  letterSpacing: 5.0,
+                ),
               ),
               const SizedBox(height: 8),
               if (!isInitialState)
                 Text(
                   'Siklus: ${cubit.getCurrentCycleLabel()}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 )
               else
                 _buildSettingsButton(),

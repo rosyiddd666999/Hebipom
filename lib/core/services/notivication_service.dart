@@ -16,75 +16,128 @@ class NotificationService {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
+  // --- TAMBAHAN: Callback untuk notify UI saat permission berubah ---
+  Function(Map<String, bool>)? onPermissionChanged;
+
   void log(String message) {
     final timestamp = DateTime.now().toIso8601String();
     final logEntry = "[$timestamp] $message";
     debugPrint(logEntry);
   }
 
-  Future<Map<String, bool>> requestAllPermissions() async {
-    Map<String, bool> results = {};
-
-    if (Platform.isAndroid) {
-      final notifStatus = await Permission.notification.request();
-      results['notification'] = notifStatus.isGranted;
-      log('Notification permission: ${notifStatus.isGranted}');
-
-      final alarmStatus = await Permission.scheduleExactAlarm.status;
-      if (!alarmStatus.isGranted) {
-        const intent = AndroidIntent(
-          action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
-        );
-        await intent.launch();
-        log('Opened exact alarm settings - waiting for user action...');
-
-        await Future.delayed(const Duration(seconds: 2));
-        final newAlarmStatus = await Permission.scheduleExactAlarm.status;
-        results['exactAlarm'] = newAlarmStatus.isGranted;
-        log('Exact alarm permission: ${newAlarmStatus.isGranted}');
-      } else {
-        results['exactAlarm'] = true;
-        log('Exact alarm already granted');
-      }
-
-      final batteryStatus = await Permission.ignoreBatteryOptimizations.status;
-      if (!batteryStatus.isGranted) {
-        const intent = AndroidIntent(
-          action: 'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
-          data: 'package:com.marimo.hebipom',
-        );
-        await intent.launch();
-        log('Opened battery optimization settings');
-
-        await Future.delayed(const Duration(seconds: 2));
-        final newBatteryStatus =
-            await Permission.ignoreBatteryOptimizations.status;
-        results['batteryOptimization'] = newBatteryStatus.isGranted;
-        log('Battery optimization ignored: ${newBatteryStatus.isGranted}');
-      } else {
-        results['batteryOptimization'] = true;
-        log('Battery optimization already ignored');
-      }
-    }
-
-    return results;
+  // --- IMPROVED: Check individual permission dengan detail ---
+  Future<bool> _checkNotificationPermission() async {
+    if (!Platform.isAndroid) return true;
+    return await Permission.notification.isGranted;
   }
 
+  Future<bool> _checkExactAlarmPermission() async {
+    if (!Platform.isAndroid) return true;
+    return await Permission.scheduleExactAlarm.isGranted;
+  }
+
+  Future<bool> _checkBatteryOptimizationPermission() async {
+    if (!Platform.isAndroid) return true;
+    return await Permission.ignoreBatteryOptimizations.isGranted;
+  }
+
+  // --- IMPROVED: Request dengan proper handling ---
+  Future<bool> requestNotificationPermission() async {
+    if (!Platform.isAndroid) return true;
+
+    final status = await Permission.notification.request();
+    log('Notification permission: ${status.isGranted}');
+    return status.isGranted;
+  }
+
+  Future<bool> requestExactAlarmPermission() async {
+    if (!Platform.isAndroid) return true;
+
+    final status = await Permission.scheduleExactAlarm.status;
+    if (status.isGranted) {
+      log('Exact alarm already granted');
+      return true;
+    }
+
+    // Open settings
+    const intent = AndroidIntent(
+      action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
+    );
+    await intent.launch();
+    log('Opened exact alarm settings');
+
+    // Return false, akan di-check ulang saat app resume
+    return false;
+  }
+
+  Future<bool> requestBatteryOptimizationPermission() async {
+    if (!Platform.isAndroid) return true;
+
+    final status = await Permission.ignoreBatteryOptimizations.status;
+    if (status.isGranted) {
+      log('Battery optimization already ignored');
+      return true;
+    }
+
+    // Open settings dengan package name
+    const intent = AndroidIntent(
+      action: 'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+      data: 'package:com.marimo.hebipom', // Sesuaikan dengan package name Anda
+    );
+    await intent.launch();
+    log('Opened battery optimization settings');
+
+    // Return false, akan di-check ulang saat app resume
+    return false;
+  }
+
+  // --- IMPROVED: Check all permissions tanpa delay ---
   Future<Map<String, bool>> checkAllPermissions() async {
     Map<String, bool> results = {};
 
     if (Platform.isAndroid) {
-      results['notification'] = await Permission.notification.isGranted;
-      results['exactAlarm'] = await Permission.scheduleExactAlarm.isGranted;
+      results['notification'] = await _checkNotificationPermission();
+      results['exactAlarm'] = await _checkExactAlarmPermission();
       results['batteryOptimization'] =
-          await Permission.ignoreBatteryOptimizations.isGranted;
+          await _checkBatteryOptimizationPermission();
     } else {
       results['notification'] = true;
       results['exactAlarm'] = true;
       results['batteryOptimization'] = true;
     }
 
+    log('Current permissions: $results');
     return results;
+  }
+
+  // --- IMPROVED: Sequential request (satu per satu) ---
+  Future<Map<String, bool>> requestAllPermissionsSequential() async {
+    Map<String, bool> results = {};
+
+    if (!Platform.isAndroid) {
+      results['notification'] = true;
+      results['exactAlarm'] = true;
+      results['batteryOptimization'] = true;
+      return results;
+    }
+
+    // Step 1: Notification
+    results['notification'] = await requestNotificationPermission();
+
+    // Step 2: Exact Alarm (buka settings, return immediately)
+    results['exactAlarm'] = await requestExactAlarmPermission();
+
+    // Step 3: Battery Optimization (buka settings, return immediately)
+    results['batteryOptimization'] =
+        await requestBatteryOptimizationPermission();
+
+    return results;
+  }
+
+  // --- DEPRECATED: Old method dengan delay ---
+  @Deprecated('Use requestAllPermissionsSequential instead')
+  Future<Map<String, bool>> requestAllPermissions() async {
+    return requestAllPermissionsSequential();
   }
 
   Future<void> openBatteryOptimizationSettings() async {
@@ -112,10 +165,10 @@ class NotificationService {
 
       const DarwinInitializationSettings iosSettings =
           DarwinInitializationSettings(
-            requestAlertPermission: true,
-            requestBadgePermission: true,
-            requestSoundPermission: true,
-          );
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
 
       const InitializationSettings initSettings = InitializationSettings(
         android: androidSettings,
@@ -126,8 +179,8 @@ class NotificationService {
         initSettings,
         onDidReceiveNotificationResponse:
             (NotificationResponse response) async {
-              log('🔔 Notification tapped (foreground): ${response.payload}');
-            },
+          log('🔔 Notification tapped (foreground): ${response.payload}');
+        },
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
 
@@ -222,7 +275,6 @@ class NotificationService {
         body,
         scheduledDate,
         _notificationDetails(id),
-
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
       );
@@ -245,7 +297,6 @@ class NotificationService {
       );
 
       if (!shouldReset) {
-        // Streak masih aman, cancel alert jika ada
         await cancelNotification(habit.id + 10000);
         continue;
       }
@@ -279,9 +330,7 @@ class NotificationService {
 
       final alertTime = deadlineTime.subtract(const Duration(hours: 5));
 
-      // Jika alert time sudah lewat atau terlalu dekat, kirim notifikasi sekarang
       if (alertTime.isBefore(now)) {
-        // Notifikasi immediate jika sudah lewat
         await notificationsPlugin.show(
           habit.id + 10000,
           '⚠️ Streak Dalam Bahaya!',
@@ -319,7 +368,7 @@ class NotificationService {
       channelDescription: 'Shows ongoing pomodoro timer',
       importance: Importance.low,
       priority: Priority.low,
-      ongoing: true, // Membuat notifikasi persistent
+      ongoing: true,
       autoCancel: false,
       showProgress: true,
       maxProgress: 100,
@@ -328,10 +377,12 @@ class NotificationService {
       enableVibration: false,
     );
 
+    final notificationId = pomodoroId % 2147483647;
+
     final notificationDetails = NotificationDetails(android: androidDetails);
 
     await notificationsPlugin.show(
-      pomodoroId, // ID unik per pomodoro
+      notificationId,
       'Pomodoro Timer - $phase',
       timeRemaining,
       notificationDetails,
@@ -339,7 +390,8 @@ class NotificationService {
   }
 
   Future<void> cancelPomodoroProgressNotification(int pomodoroId) async {
-    await notificationsPlugin.cancel(pomodoroId);
+    final notificationId = pomodoroId % 2147483647;
+    await notificationsPlugin.cancel(notificationId);
   }
 
   Future<void> cancelNotification(int id) async {

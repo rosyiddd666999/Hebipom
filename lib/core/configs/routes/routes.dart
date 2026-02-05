@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hebipom/futures/presentation/page/pomodoro/pomodoro_page.dart';
-import 'package:hebipom/futures/presentation/page/settings/details/history_page.dart';
-import 'package:hebipom/futures/presentation/page/settings/details/notif_page.dart';
-import 'package:hebipom/futures/presentation/page/settings/details/theme_page.dart';
+import 'package:hebipom/futures/presentation/page/sidebar/items/history_page.dart';
+import 'package:hebipom/futures/presentation/page/sidebar/items/notif_page.dart';
+import 'package:hebipom/futures/presentation/page/sidebar/items/theme_page.dart';
 import '../../../futures/presentation/page/habit/habit_page.dart';
+import '../../../futures/presentation/page/sidebar/items/statistic_page.dart';
 import 'intro/onboarding_setup_screen.dart';
 import '../../services/notivication_service.dart';
-import 'intro/permission_check.dart';
+import '../../services/permission_check.dart';
 import 'intro/splash_screen.dart';
 
 part 'routes_name.dart';
@@ -43,6 +44,11 @@ GoRouter habitRouter(NotificationService notificationService) {
             path: RouteNames.pomodoro,
             name: 'pomodoro',
             builder: (context, state) => const PomodoroPage(),
+          ),
+          GoRoute(
+            path: RouteNames.statistics,
+            name: 'statistics',
+            builder: (context, state) => const StatisticPage(),
           ),
           GoRoute(
             path: RouteNames.theme,

@@ -1,7 +1,9 @@
 // futures/presentation/widget/pomodoro/mini_pomodoro_player.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hebipom/core/utils/vectors.dart';
 import '../../cubit/pomodoro_timer_ui/pomodoro_timer_ui_cubit.dart';
 
 class MiniPomodoroPlayer extends StatelessWidget {
@@ -18,30 +20,47 @@ class MiniPomodoroPlayer extends StatelessWidget {
     return BlocBuilder<PomodoroTimerUiCubit, PomodoroTimerUiState>(
       builder: (context, state) {
         // Jangan tampilkan mini player jika tidak ada timer aktif
-        if (state is PomodoroTimerUiInitial || state is PomodoroTimerUiRunComplete) {
-          return FloatingActionButton(
-            elevation: 0,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            onPressed: () {
+        if (state is PomodoroTimerUiInitial ||
+            state is PomodoroTimerUiRunComplete) {
+          return InkWell(
+            onTap: () {
               context.goNamed('pomodoro');
             },
-            child: const Icon(Icons.timer_outlined),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 1.5,
+                ),
+              ),
+              height: 50,
+              width: 50,
+              padding: const EdgeInsets.all(12),
+              child: SvgPicture.asset(
+                AppVectors.pomodoroLight,
+                width: 24,
+                height: 24,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
           );
         }
 
         final cubit = context.read<PomodoroTimerUiCubit>();
-        
+
         // Hitung progress untuk circular indicator
-        final totalPhaseDuration = cubit.phases.isNotEmpty && 
-                                   state.currentPhaseIndex < cubit.phases.length
+        final totalPhaseDuration =
+            cubit.phases.isNotEmpty &&
+                state.currentPhaseIndex < cubit.phases.length
             ? cubit.phases[state.currentPhaseIndex]
             : Duration.zero;
-        
+
         final progress = totalPhaseDuration.inSeconds > 0
             ? 1.0 - (state.remaining.inSeconds / totalPhaseDuration.inSeconds)
             : 0.0;
-        
+
         final safeProgress = progress.clamp(0.0, 1.0);
 
         // Warna berdasarkan fase (Fokus vs Istirahat)
@@ -55,30 +74,29 @@ class MiniPomodoroPlayer extends StatelessWidget {
             context.goNamed('pomodoro');
           },
           child: SizedBox(
-            width: 72,
-            height: 72,
+            width: 50,
+            height: 50,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 // Circular Progress Indicator
                 SizedBox(
-                  width: 72,
-                  height: 72,
+                  width: 50,
+                  height: 50,
                   child: CircularProgressIndicator(
                     value: safeProgress,
                     strokeWidth: 4,
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest
-                        .withOpacity(0.3),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest.withOpacity(0.3),
                     valueColor: AlwaysStoppedAnimation<Color>(phaseColor),
                   ),
                 ),
-                
+
                 // Container untuk inner content
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Theme.of(context).colorScheme.surface,

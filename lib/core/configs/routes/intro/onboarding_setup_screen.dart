@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import '../../../services/permission_check.dart';
 import '../../../widgets/my_button.dart';
 import '../routes.dart';
 import '../../../services/notivication_service.dart';
@@ -20,57 +21,158 @@ class OnboardingPage extends StatefulWidget {
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> {
+class _OnboardingPageState extends State<OnboardingPage>
+    with WidgetsBindingObserver {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // --- State Permission ---
   Map<String, bool> _permissions = {
     'notification': false,
     'exactAlarm': false,
     'batteryOptimization': false,
   };
 
-  // ignore: unused_field
   bool _isLoading = false;
   bool _showManualSteps = false;
+  bool _isRequestingPermission = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermissions();
   }
 
-  // --- Logika Permission Service ---
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed && _isRequestingPermission) {
+      debugPrint('📱 App resumed from settings, re-checking permissions...');
+      _isRequestingPermission = false;
+      _checkPermissions();
+    }
+  }
+
   Future<void> _checkPermissions() async {
+    if (!mounted) return;
+
     setState(() => _isLoading = true);
     final permissions = await widget.notificationService.checkAllPermissions();
+
     if (mounted) {
       setState(() {
         _permissions = permissions;
         _isLoading = false;
       });
+
+      final allGranted = _permissions.values.every((granted) => granted);
+      if (allGranted && _currentPage == 2) {
+        // ✅ Mark setup completed di SharedPreferences
+        await PermissionChecker.markSetupCompleted();
+        _showSuccessDialog();
+      }
     }
   }
 
-  Future<void> _requestAllPermissions() async {
+  Future<void> _requestPermissionsSequentially() async {
+    if (!mounted) return;
+
     setState(() => _isLoading = true);
+
     try {
-      final results = await widget.notificationService.requestAllPermissions();
-      if (mounted) _showResultsDialog(results);
+      // Step 1: Request Notification
+      if (!_permissions['notification']!) {
+        final granted =
+            await widget.notificationService.requestNotificationPermission();
+        setState(() => _permissions['notification'] = granted);
+
+        if (!granted) {
+          _showPermissionDeniedDialog('Notifikasi');
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
+      // Step 2: Request Exact Alarm
+      if (!_permissions['exactAlarm']!) {
+        setState(() => _isRequestingPermission = true);
+        await widget.notificationService.requestExactAlarmPermission();
+        setState(() => _isLoading = false);
+        return; // Wait for user to come back from settings
+      }
+
+      // Step 3: Request Battery Optimization
+      if (!_permissions['batteryOptimization']!) {
+        setState(() => _isRequestingPermission = true);
+        await widget.notificationService
+            .requestBatteryOptimizationPermission();
+        setState(() => _isLoading = false);
+        return; // Wait for user to come back from settings
+      }
+
+      // All permissions granted
       await _checkPermissions();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- Helper UI Permission ---
+  void _showPermissionDeniedDialog(String permissionName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Izin Ditolak'),
+        content: Text(
+          'Izin $permissionName diperlukan agar aplikasi dapat mengirim pengingat tepat waktu. '
+          'Silakan aktifkan di pengaturan aplikasi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('✅ Berhasil!'),
+        content: const Text(
+          'Semua izin telah diberikan. Aplikasi siap digunakan!',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onCompleted?.call();
+              context.go(RouteNames.habit);
+            },
+            child: const Text('MULAI'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _getPermissionLabel(String key) {
     switch (key) {
       case 'notification':
@@ -110,43 +212,19 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
   }
 
-  void _showResultsDialog(Map<String, bool> results) {
-    final allGranted = results.values.every((granted) => granted);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(allGranted ? '✅ Berhasil!' : '⚠️ Perhatian'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: results.entries
-              .map(
-                (entry) => Row(
-                  children: [
-                    Icon(
-                      entry.value ? Icons.check_circle : Icons.cancel,
-                      color: entry.value
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.red,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(_getPermissionLabel(entry.key))),
-                  ],
-                ),
-              )
-              .toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  String _getPermissionInstruction(String key) {
+    switch (key) {
+      case 'notification':
+        return 'Klik tombol di bawah untuk mengaktifkan notifikasi';
+      case 'exactAlarm':
+        return 'Anda akan diarahkan ke pengaturan. Aktifkan "Alarms & reminders" untuk aplikasi ini';
+      case 'batteryOptimization':
+        return 'Anda akan diarahkan ke pengaturan. Pilih "Don\'t optimize" atau "Unrestricted"';
+      default:
+        return '';
+    }
   }
 
-  // --- Build UI ---
   @override
   Widget build(BuildContext context) {
     final allGranted = _permissions.values.every((granted) => granted);
@@ -187,13 +265,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
             ),
 
-            // Bottom Navigation Area
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Dot Indicator
                   SmoothPageIndicator(
                     controller: _pageController,
                     count: 3,
@@ -204,8 +280,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       dotColor: Colors.grey.shade300,
                     ),
                   ),
-
-                  // Action Button
                   if (_currentPage < 2)
                     MyButton(
                       onPressed: () => _pageController.nextPage(
@@ -217,15 +291,21 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     )
                   else
                     MyButton(
-                      onPressed: allGranted
-                          ? () {
-                              widget.onCompleted?.call();
-                              context.go(RouteNames.habit);
-                            }
-                          : () {
-                              _requestAllPermissions();
-                            },
-                      label: allGranted ? "MULAI" : "IZINKAN DULU",
+                      onPressed:  allGranted
+                              ? () async {
+                                  await PermissionChecker.markSetupCompleted();
+                                  widget.onCompleted?.call();
+                                  if (mounted) {
+                                    // ignore: use_build_context_synchronously
+                                    context.goNamed('habit');
+                                  }
+                                }
+                              : _requestPermissionsSequentially,
+                      label: _isLoading
+                          ? "MEMPROSES..."
+                          : allGranted
+                              ? "MULAI"
+                              : "IZINKAN",
                     ),
                 ],
               ),
@@ -292,21 +372,28 @@ class _OnboardingPageState extends State<OnboardingPage> {
           const SizedBox(height: 12),
           Text(
             allGranted
-                ? "Semua sudah siap! Klik tombol Mulai di bawah."
+                ? "✅ Semua sudah siap! Klik tombol Mulai di bawah."
                 : "Untuk memastikan notifikasi muncul tepat waktu, kami membutuhkan izin berikut:",
             textAlign: TextAlign.center,
+            style: TextStyle(
+              color: allGranted ? Colors.green : null,
+              fontWeight: allGranted ? FontWeight.w600 : null,
+            ),
           ),
           const SizedBox(height: 30),
 
-          ..._permissions.entries.map(
-            (entry) => Card(
+          ..._permissions.entries.map((entry) {
+            final isGranted = entry.value;
+            return Card(
               elevation: 0,
-              color: Theme.of(context).colorScheme.secondary,
+              color: isGranted
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                  : Theme.of(context).colorScheme.secondary,
               margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
+              child: ExpansionTile(
                 leading: Icon(
                   _getPermissionIcon(entry.key),
-                  color: entry.value
+                  color: isGranted
                       ? Theme.of(context).colorScheme.primary
                       : Colors.grey,
                 ),
@@ -316,19 +403,26 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   style: const TextStyle(fontSize: 12),
                 ),
                 trailing: Icon(
-                  entry.value ? Icons.check_circle : Icons.cancel,
-                  color: entry.value
+                  isGranted ? Icons.check_circle : Icons.cancel,
+                  color: isGranted
                       ? Theme.of(context).colorScheme.primary
                       : Colors.red,
                 ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      _getPermissionInstruction(entry.key),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ),
+            );
+          }),
 
-          if (!allGranted)
-            MyButton(onPressed: _requestAllPermissions, label: 'Izinkan Semua'),
+          const SizedBox(height: 20),
 
-          const SizedBox(height: 10),
           Center(
             child: TextButton.icon(
               onPressed: () =>
@@ -336,7 +430,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               icon: Icon(
                 _showManualSteps ? Icons.expand_less : Icons.expand_more,
               ),
-              label: const Text("Panduan Manual (Saran)"),
+              label: const Text("Panduan Manual (Opsional)"),
             ),
           ),
           if (_showManualSteps) _buildManualStepsCard(),
@@ -347,33 +441,70 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   Widget _buildManualStepsCard() {
     return Card(
-      color: Theme.of(context).colorScheme.secondary,
+      color: Colors.orange.shade50,
       elevation: 0,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Penting: Beberapa HP (Xiaomi, Samsung, Oppo) memerlukan pengaturan 'Autostart' manual agar pengingat tidak mati.",
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    "Penting untuk beberapa perangkat:",
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
             ),
             const Divider(),
-            _manualText("Xiaomi: Settings > Apps > Permissions > Autostart"),
-            _manualText("Samsung: Settings > Apps > Battery > Unrestricted"),
+            _manualText(
+              "Xiaomi/POCO/Redmi",
+              "Settings > Apps > Manage apps > Hebipom > Autostart (ON)",
+            ),
+            _manualText(
+              "Samsung",
+              "Settings > Apps > Hebipom > Battery > Unrestricted",
+            ),
+            _manualText(
+              "Oppo/Realme",
+              "Settings > Battery > App power management > Hebipom (Allow)",
+            ),
+            _manualText(
+              "Vivo",
+              "Settings > Battery > Background power consumption > Hebipom (High)",
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _manualText(String text) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      children: [
-        const Icon(Icons.info_outline, size: 14),
-        const SizedBox(width: 8),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 11))),
-      ],
-    ),
-  );
+  Widget _manualText(String brand, String instruction) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.smartphone, size: 14),
+            const SizedBox(width: 8),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 11, color: Colors.black87),
+                  children: [
+                    TextSpan(
+                      text: '$brand: ',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    TextSpan(text: instruction),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 }

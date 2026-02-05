@@ -14,15 +14,17 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.hebipom/permissions"
-    
+    private var methodChannel: MethodChannel? = null
+
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        
+
         // Create notification channel untuk Android 8.0+
         createNotificationChannel()
-        
+
         // Setup method channel untuk komunikasi dengan Flutter
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "checkBatteryOptimization" -> {
                     result.success(isBatteryOptimizationDisabled())
@@ -40,12 +42,34 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+
+        // Handle intent awal jika ada
+        handleIntent(intent)
     }
-    
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        // Check jika action adalah toggle habit
+        if (intent?.action == "TOGGLE_HABIT_ACTION") {
+            val habitId = intent.getStringExtra("habit_id")
+            if (habitId != null) {
+                // Kirim ke Flutter via method channel
+                methodChannel?.invokeMethod(
+                    "toggleHabit",
+                    mapOf("habitId" to habitId)
+                )
+            }
+        }
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            
+
             // Channel untuk habit reminders
             val channel = NotificationChannel(
                 "hebipom_notifications",
@@ -57,11 +81,11 @@ class MainActivity : FlutterActivity() {
                 enableLights(true)
                 setShowBadge(true)
             }
-            
+
             notificationManager.createNotificationChannel(channel)
         }
     }
-    
+
     private fun isBatteryOptimizationDisabled(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
@@ -69,7 +93,7 @@ class MainActivity : FlutterActivity() {
         }
         return true
     }
-    
+
     private fun requestBatteryOptimizationExemption() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!isBatteryOptimizationDisabled()) {
@@ -80,7 +104,7 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
-    
+
     private fun openNotificationSettings() {
         val intent = Intent().apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

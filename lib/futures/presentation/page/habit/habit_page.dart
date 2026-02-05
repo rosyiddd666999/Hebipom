@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hebipom/futures/presentation/page/habit_detail/habit_detail_page.dart';
 import 'package:hebipom/futures/presentation/widget/habit/my_habit_header.dart';
-import 'package:hebipom/futures/presentation/widget/pomodoro/mini_pomodoro_player.dart';
 import 'package:intl/intl.dart';
 import '../../../domain/entity/habit.dart';
 import '../../cubit/habit_cubit.dart';
@@ -197,7 +196,7 @@ class _HabitPageState extends State<HabitPage> {
                               horizontal: 20.0,
                             ),
                             child: _buildEmptyState(
-                              "Belum ada habit aktif.\nKlik '+' untuk menambah.",
+                              "Belum ada habit aktif.\nKlik tombol '+' di kanan atas\nuntuk menambahkan.",
                             ),
                           )
                         else if (displayedHabits.isEmpty)
@@ -227,7 +226,6 @@ class _HabitPageState extends State<HabitPage> {
             );
           },
         ),
-        floatingActionButton: const MiniPomodoroPlayer(),
       ),
     );
   }

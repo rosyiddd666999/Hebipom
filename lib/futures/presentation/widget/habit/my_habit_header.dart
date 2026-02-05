@@ -1,8 +1,5 @@
-import 'package:flutter_svg/svg.dart';
-import 'package:go_router/go_router.dart';
-import 'package:hebipom/core/utils/vectors.dart';
-// import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
+import '../pomodoro/mini_pomodoro_player.dart';
 import 'add_habit_screen.dart';
 
 class MyHabitHeader extends StatelessWidget {
@@ -33,28 +30,7 @@ class MyHabitHeader extends StatelessWidget {
         ),
         Row(
           children: [
-            InkWell(
-              onTap: () {
-                context.goNamed('pomodoro');
-              },
-              child: Container(
-                height: 50,
-                width: 50,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.surface,
-                    width: 1.5,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: SvgPicture.asset(
-                  Theme.of(context).brightness == Brightness.light
-                      ? AppVectors.pomodoroDark
-                      : AppVectors.pomodoroLight,
-                ),
-              ),
-            ),
+            const MiniPomodoroPlayer(),
             const SizedBox(width: 10),
             InkWell(
               onTap: () async {
