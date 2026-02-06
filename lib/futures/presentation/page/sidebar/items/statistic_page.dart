@@ -27,7 +27,6 @@ class _StatisticPageState extends State<StatisticPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Membungkus seluruh Scaffold agar AppBar mendapatkan akses data
     return BlocBuilder<HabitCubit, List<Habit>>(
       builder: (context, habits) {
         return BlocBuilder<PomodoroCubit, List<Pomodoro>>(
@@ -51,7 +50,7 @@ class _StatisticPageState extends State<StatisticPage> {
                       size: 24,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    // Sekarang kita bisa mengirim habits dan pomodoros ke fungsi share
+
                     onPressed: _isSharing
                         ? null
                         : () => _captureAndShare(habits, pomodoros),
@@ -65,26 +64,22 @@ class _StatisticPageState extends State<StatisticPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // OVERVIEW CARDS
                       _buildOverviewCards(context, habits, pomodoros),
 
                       const SizedBox(height: 24),
 
-                      // WEEKLY TREND
                       _buildSectionTitle(context, 'WEEKLY TREND'),
                       const SizedBox(height: 16),
                       _buildWeeklyTrendChart(context, habits, pomodoros),
 
                       const SizedBox(height: 24),
 
-                      // CATEGORY DISTRIBUTION
                       _buildSectionTitle(context, 'CATEGORY DISTRIBUTION'),
                       const SizedBox(height: 16),
                       _buildCategoryDistribution(context, habits),
 
                       const SizedBox(height: 24),
 
-                      // PRODUCTIVITY INSIGHTS
                       _buildSectionTitle(context, 'PRODUCTIVITY INSIGHTS'),
                       const SizedBox(height: 16),
                       _buildProductivityInsights(context, habits, pomodoros),
@@ -107,7 +102,6 @@ class _StatisticPageState extends State<StatisticPage> {
     setState(() => _isSharing = true);
 
     try {
-      // Kita render "Poster" khusus secara off-screen
       final Uint8List imageBytes = await _screenshotController
           .captureFromWidget(
             _buildSharePoster(context, habits, pomodoros),
@@ -133,17 +127,15 @@ class _StatisticPageState extends State<StatisticPage> {
     }
   }
 
-  // 4. Widget Poster Khusus untuk di-Share
   Widget _buildSharePoster(
     BuildContext context,
     List<Habit> habits,
     List<Pomodoro> pomodoros,
   ) {
     return Container(
-      width: 375, // Ukuran standar story/post
+      width: 375,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        // Beri background gradient agar lebih estetik saat di share
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -154,8 +146,7 @@ class _StatisticPageState extends State<StatisticPage> {
         ),
       ),
       child: Column(
-        mainAxisSize:
-            MainAxisSize.min, // Penting agar tinggi menyesuaikan konten
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
@@ -177,7 +168,6 @@ class _StatisticPageState extends State<StatisticPage> {
             ),
           ),
 
-          // Re-use widget yang sudah kamu buat
           _buildOverviewCards(context, habits, pomodoros),
           const SizedBox(height: 20),
 
@@ -189,7 +179,8 @@ class _StatisticPageState extends State<StatisticPage> {
           Center(
             child: Column(
               children: [
-                Image.asset('assets/images/logo_light.png',
+                Image.asset(
+                  'assets/images/logo_light.png',
                   width: 25,
                   height: 25,
                 ),
@@ -210,7 +201,6 @@ class _StatisticPageState extends State<StatisticPage> {
     return Text(title, style: Theme.of(context).textTheme.titleMedium);
   }
 
-  // OVERVIEW CARDS
   Widget _buildOverviewCards(
     BuildContext context,
     List<Habit> habits,
@@ -286,7 +276,7 @@ class _StatisticPageState extends State<StatisticPage> {
       decoration: BoxDecoration(
         color: Theme.of(
           context,
-        ).colorScheme.secondaryContainer.withOpacity(0.3),
+        ).colorScheme.secondary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
@@ -319,7 +309,6 @@ class _StatisticPageState extends State<StatisticPage> {
     );
   }
 
-  // WEEKLY TREND CHART
   Widget _buildWeeklyTrendChart(
     BuildContext context,
     List<Habit> habits,
@@ -332,7 +321,7 @@ class _StatisticPageState extends State<StatisticPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer.withOpacity(0.3),
+        color: colorScheme.secondary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
@@ -422,7 +411,6 @@ class _StatisticPageState extends State<StatisticPage> {
                 minY: 0,
                 maxY: _getMaxYValue(habitData, pomodoroData),
                 lineBarsData: [
-                  // Habit Line
                   LineChartBarData(
                     spots: habitData,
                     isCurved: true,
@@ -445,7 +433,7 @@ class _StatisticPageState extends State<StatisticPage> {
                       color: Colors.green.withOpacity(0.1),
                     ),
                   ),
-                  // Pomodoro Line
+
                   LineChartBarData(
                     spots: pomodoroData,
                     isCurved: true,
@@ -500,7 +488,6 @@ class _StatisticPageState extends State<StatisticPage> {
     );
   }
 
-  // CATEGORY DISTRIBUTION
   Widget _buildCategoryDistribution(BuildContext context, List<Habit> habits) {
     final colorScheme = Theme.of(context).colorScheme;
     final categoryData = _getCategoryData(habits);
@@ -509,7 +496,7 @@ class _StatisticPageState extends State<StatisticPage> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: colorScheme.secondaryContainer.withOpacity(0.3),
+          color: colorScheme.secondary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colorScheme.outlineVariant),
         ),
@@ -525,7 +512,7 @@ class _StatisticPageState extends State<StatisticPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer.withOpacity(0.3),
+        color: colorScheme.secondary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
@@ -594,7 +581,6 @@ class _StatisticPageState extends State<StatisticPage> {
     );
   }
 
-  // PRODUCTIVITY INSIGHTS
   Widget _buildProductivityInsights(
     BuildContext context,
     List<Habit> habits,
@@ -609,7 +595,7 @@ class _StatisticPageState extends State<StatisticPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer.withOpacity(0.3),
+        color: colorScheme.secondary,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
@@ -681,7 +667,6 @@ class _StatisticPageState extends State<StatisticPage> {
     );
   }
 
-  // HELPER METHODS
   String _calculateTotalFocusHours(List<Pomodoro> pomodoros) {
     if (pomodoros.isEmpty) return '0h';
 
@@ -699,12 +684,9 @@ class _StatisticPageState extends State<StatisticPage> {
     return '${minutes}m';
   }
 
-  // PERBAIKAN: Longest Consecutive Streak
-  // Hanya menghitung hari di mana SEMUA habit completed
   int _calculateLongestConsecutiveStreak(List<Habit> habits) {
     if (habits.isEmpty) return 0;
 
-    // Kumpulkan semua tanggal unik dari semua habit
     final allDates = <DateTime>{};
     for (var habit in habits) {
       for (var date in habit.completedDates) {
@@ -721,7 +703,6 @@ class _StatisticPageState extends State<StatisticPage> {
     DateTime? previousDate;
 
     for (var date in sortedDates) {
-      // Cek apakah SEMUA habit completed pada tanggal ini
       final allHabitsCompleted = habits.every(
         (habit) => habit.isCompletedOnDate(date),
       );

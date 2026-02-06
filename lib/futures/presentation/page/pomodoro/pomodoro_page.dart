@@ -368,6 +368,7 @@ class _PomodoroPageState extends State<PomodoroPage> {
                               const SnackBar(
                                 content: Text('Habit ini telah selesai.'),
                                 duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
                               ),
                             );
                           },

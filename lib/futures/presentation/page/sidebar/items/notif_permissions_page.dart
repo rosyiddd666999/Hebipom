@@ -110,6 +110,10 @@ class _PermissionPageState extends State<PermissionPage> {
               ? const Color.fromARGB(255, 136, 226, 139)
               : Colors.red.shade500,
         ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
       ),
     );
   }
@@ -124,6 +128,10 @@ class _PermissionPageState extends State<PermissionPage> {
       child: Card(
         color: Theme.of(context).cardColor,
         elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -204,7 +212,10 @@ class _PermissionPageState extends State<PermissionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('PERMISSIONS', style: Theme.of(context).textTheme.titleMedium),
+        title: Text(
+          'PERMISSIONS',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         leading: BackButton(onPressed: () => context.pop()),
@@ -212,9 +223,7 @@ class _PermissionPageState extends State<PermissionPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-               padding: const EdgeInsets.symmetric(
-                  horizontal: 20.0,
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

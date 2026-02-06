@@ -171,6 +171,14 @@ class HabitHistoryTab extends StatelessWidget {
                             style: Theme.of(context).textTheme.bodyMedium!
                                 .copyWith(fontWeight: FontWeight.bold),
                           ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
+                          ),
                         ),
                       ),
                     )
@@ -258,6 +266,12 @@ class PomodoroHistoryTab extends StatelessWidget {
                         'Total: $totalTime m',
                         style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                           fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
                     ),

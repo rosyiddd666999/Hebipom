@@ -43,6 +43,7 @@ class MySidebar extends StatelessWidget {
               'Tidak dapat membuka aplikasi email. Pastikan ada klien email terinstal.',
             ),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -51,6 +52,7 @@ class MySidebar extends StatelessWidget {
         SnackBar(
           content: Text('Error saat meluncurkan email: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -187,7 +189,7 @@ class MySidebar extends StatelessWidget {
 
   Widget _buildDivider(BuildContext context) {
     return Divider(
-      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
+      color: Theme.of(context).colorScheme.outlineVariant,
     );
   }
 }

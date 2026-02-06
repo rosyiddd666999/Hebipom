@@ -1,5 +1,3 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
@@ -17,14 +15,14 @@ import '../../../domain/entity/habit.dart';
 class HabitDetailPage extends StatefulWidget {
   final Habit habit;
 
-  HabitDetailPage({super.key, required this.habit});
+  const HabitDetailPage({super.key, required this.habit});
 
   @override
   State<HabitDetailPage> createState() => _HabitDetailPageState();
 }
 
 class _HabitDetailPageState extends State<HabitDetailPage> {
-  final Map<String, String> lightCategories = {
+  final Map<String, String> categories = {
     'study': AppVectors.studyLight,
     'work': AppVectors.workLight,
     'exercise': AppVectors.exerciseLight,
@@ -35,19 +33,6 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
     'drink': AppVectors.drinkLight,
     'saving': AppVectors.savingLight,
     'other': AppVectors.otherLight,
-  };
-
-  final Map<String, String> darkCategories = {
-    'study': AppVectors.studyDark,
-    'work': AppVectors.workDark,
-    'exercise': AppVectors.exerciseDark,
-    'health': AppVectors.healthDark,
-    'sleep': AppVectors.sleepDark,
-    'read': AppVectors.readDark,
-    'write': AppVectors.writeDark,
-    'drink': AppVectors.drinkDark,
-    'saving': AppVectors.savingDark,
-    'other': AppVectors.otherDark,
   };
 
   final Map<String, String> priorityTitles = {
@@ -77,77 +62,68 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
     '4': ThemeHabit.habitCompnentDarkVariant4,
   };
 
-  // State untuk filter chart
-  String _selectedPeriod = 'week'; // 'week' atau 'month'
+  String _selectedPeriod = 'week';
 
-  // Method untuk menghitung completion rate
   String _calculateCompletionRate(Habit habit) {
     if (habit.completedDates.isEmpty) {
       return "0%";
     }
 
-    // Cari tanggal pertama dan terakhir completed
     final sortedDates = [...habit.completedDates]..sort();
     final firstDate = sortedDates.first;
     final now = DateTime.now();
 
-    // Hitung total hari sejak pertama kali completed hingga sekarang
     final totalDays = now.difference(firstDate).inDays + 1;
 
-    // Hindari pembagian dengan 0
     if (totalDays <= 0) return "0%";
 
-    // Hitung persentase (jumlah hari completed / total hari)
     final rate = (habit.completedDates.length / totalDays) * 100;
 
-    // Format dengan 1 desimal
     return "${rate.toStringAsFixed(1)}%";
   }
 
-  // Method untuk generate data chart berdasarkan periode
   List<FlSpot> _generateChartData(Habit habit) {
     final now = DateTime.now();
     final spots = <FlSpot>[];
-    
+
     if (_selectedPeriod == 'week') {
-      // 7 hari terakhir
       for (int i = 6; i >= 0; i--) {
         final date = DateTime(now.year, now.month, now.day - i);
 
-        // Hitung completion rate kumulatif sampai hari tersebut
-        final completedUntilDate = habit.completedDates.where((d) => 
-            d.isBefore(date.add(const Duration(days: 1)))).length;
-        
-        final daysSinceStart = habit.completedDates.isEmpty 
-            ? 1 
+        final completedUntilDate = habit.completedDates
+            .where((d) => d.isBefore(date.add(const Duration(days: 1))))
+            .length;
+
+        final daysSinceStart = habit.completedDates.isEmpty
+            ? 1
             : date.difference(habit.completedDates.first).inDays + 1;
-        
-        final rate = daysSinceStart > 0 
-            ? (completedUntilDate / daysSinceStart) * 100 
+
+        final rate = daysSinceStart > 0
+            ? (completedUntilDate / daysSinceStart) * 100
             : 0.0;
-        
+
         spots.add(FlSpot((6 - i).toDouble(), rate));
       }
     } else {
-      // 30 hari terakhir (dikelompokkan per 5 hari untuk readability)
       for (int i = 25; i >= 0; i -= 5) {
         final date = DateTime(now.year, now.month, now.day - i);
-        
-        final completedUntilDate = habit.completedDates.where((d) => 
-            d.isBefore(date.add(const Duration(days: 1)))).length;
-        
-        final daysSinceStart = habit.completedDates.isEmpty 
-            ? 1 
+
+        final completedUntilDate = habit.completedDates
+            .where((d) => d.isBefore(date.add(const Duration(days: 1))))
+            .length;
+
+        final daysSinceStart = habit.completedDates.isEmpty
+            ? 1
             : date.difference(habit.completedDates.first).inDays + 1;
-        
-        final rate = daysSinceStart > 0 
-            ? (completedUntilDate / daysSinceStart) * 100 
+
+        final rate = daysSinceStart > 0
+            ? (completedUntilDate / daysSinceStart) * 100
             : 0.0;
-        
+
         spots.add(FlSpot(((25 - i) / 5).toDouble(), rate));
       }
     }
-    
+
     return spots;
   }
 
@@ -155,10 +131,8 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    // Dibungkus BlocBuilder agar tampilan update otomatis saat state Cubit berubah
     return BlocBuilder<HabitCubit, List<Habit>>(
       builder: (context, habits) {
-        // Mencari data habit terbaru dari list state berdasarkan ID
         final currentHabit = habits.firstWhere(
           (h) => h.id == widget.habit.id,
           orElse: () => widget.habit,
@@ -196,10 +170,11 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                 children: [
                   const SizedBox(height: 40),
                   SvgPicture.asset(
-                    Theme.of(context).brightness == Brightness.light
-                        ? darkCategories[currentHabit.category]!
-                        : lightCategories[currentHabit.category]!,
+                    categories[currentHabit.category]!,
                     height: 80,
+                    color: Theme.of(context).brightness == Brightness.light
+                        ? priorityLightIcons[currentHabit.priority]
+                        : priorityDarkIcons[currentHabit.priority],
                   ),
                   const SizedBox(height: 40),
                   Text(
@@ -208,7 +183,7 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 40),
-                  // Row Statistik Utama
+
                   Row(
                     children: [
                       _buildStatCard(
@@ -253,14 +228,11 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Card Informasi Detail
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colorScheme.secondaryContainer.withOpacity(
-                            0.3,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
+                          color: colorScheme.secondary,
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: colorScheme.outlineVariant),
                         ),
                         child: Column(
@@ -287,7 +259,7 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                               context,
                               Icons.calendar_today_rounded,
                               "Frekuensi",
-                              currentHabit.habitFrequency,
+                              currentHabit.habitFrequency.toUpperCase(),
                               false,
                               currentHabit,
                             ),
@@ -308,7 +280,6 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                         ),
                       ),
 
-                      // SECTION STATISTIK BARU DENGAN CHART
                       const SizedBox(height: 20),
                       Text(
                         "STATISTICS",
@@ -316,18 +287,16 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Card Statistik dengan Chart
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colorScheme.secondaryContainer.withOpacity(0.3),
+                          color: colorScheme.secondary,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: colorScheme.outlineVariant),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Filter Toggle
                             Row(
                               children: [
                                 Expanded(
@@ -348,17 +317,14 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                               ],
                             ),
                             const SizedBox(height: 24),
-                            
-                            // Chart Title
+
                             Text(
                               "Completion Rate Trend",
-                              style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium!
+                                  .copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
-                            
-                            // Line Chart
+
                             SizedBox(
                               height: 200,
                               child: LineChart(
@@ -369,7 +335,8 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                                     horizontalInterval: 25,
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
-                                        color: colorScheme.outlineVariant.withOpacity(0.3),
+                                        color: colorScheme.outlineVariant
+                                            .withOpacity(0.3),
                                         strokeWidth: 1,
                                       );
                                     },
@@ -389,26 +356,49 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                                         interval: 1,
                                         getTitlesWidget: (value, meta) {
                                           if (_selectedPeriod == 'week') {
-                                            // Label untuk 7 hari
-                                            final days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-                                            if (value.toInt() >= 0 && value.toInt() < days.length) {
+                                            final days = [
+                                              'S',
+                                              'M',
+                                              'T',
+                                              'W',
+                                              'T',
+                                              'F',
+                                              'S',
+                                            ];
+                                            if (value.toInt() >= 0 &&
+                                                value.toInt() < days.length) {
                                               return Padding(
-                                                padding: const EdgeInsets.only(top: 8.0),
+                                                padding: const EdgeInsets.only(
+                                                  top: 8.0,
+                                                ),
                                                 child: Text(
                                                   days[value.toInt()],
-                                                  style: Theme.of(context).textTheme.bodySmall,
+                                                  style: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodySmall,
                                                 ),
                                               );
                                             }
                                           } else {
-                                            // Label untuk 30 hari (per 5 hari)
-                                            final labels = ['D1', 'D6', 'D11', 'D16', 'D21', 'D26'];
-                                            if (value.toInt() >= 0 && value.toInt() < labels.length) {
+                                            final labels = [
+                                              'D1',
+                                              'D6',
+                                              'D11',
+                                              'D16',
+                                              'D21',
+                                              'D26',
+                                            ];
+                                            if (value.toInt() >= 0 &&
+                                                value.toInt() < labels.length) {
                                               return Padding(
-                                                padding: const EdgeInsets.only(top: 8.0),
+                                                padding: const EdgeInsets.only(
+                                                  top: 8.0,
+                                                ),
                                                 child: Text(
                                                   labels[value.toInt()],
-                                                  style: Theme.of(context).textTheme.bodySmall,
+                                                  style: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodySmall,
                                                 ),
                                               );
                                             }
@@ -425,7 +415,9 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                                         getTitlesWidget: (value, meta) {
                                           return Text(
                                             '${value.toInt()}%',
-                                            style: Theme.of(context).textTheme.bodySmall,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
                                           );
                                         },
                                       ),
@@ -434,7 +426,8 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                                   borderData: FlBorderData(
                                     show: true,
                                     border: Border.all(
-                                      color: colorScheme.outlineVariant.withOpacity(0.3),
+                                      color: colorScheme.outlineVariant
+                                          .withOpacity(0.3),
                                     ),
                                   ),
                                   minX: 0,
@@ -450,29 +443,32 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
                                       isStrokeCapRound: true,
                                       dotData: FlDotData(
                                         show: true,
-                                        getDotPainter: (spot, percent, barData, index) {
-                                          return FlDotCirclePainter(
-                                            radius: 4,
-                                            color: colorScheme.primary,
-                                            strokeWidth: 2,
-                                            strokeColor: colorScheme.surface,
-                                          );
-                                        },
+                                        getDotPainter:
+                                            (spot, percent, barData, index) {
+                                              return FlDotCirclePainter(
+                                                radius: 4,
+                                                color: colorScheme.primary,
+                                                strokeWidth: 2,
+                                                strokeColor:
+                                                    colorScheme.surface,
+                                              );
+                                            },
                                       ),
                                       belowBarData: BarAreaData(
                                         show: true,
-                                        color: colorScheme.primary.withOpacity(0.1),
+                                        color: colorScheme.primary.withOpacity(
+                                          0.1,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
-                            
+
                             const SizedBox(height: 24),
                             const Divider(height: 30),
-                            
-                            // Statistik Numerik
+
                             _buildInfoRow(
                               context,
                               Icons.check_circle_outline_rounded,
@@ -501,11 +497,9 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
               ),
             ),
           ),
-          floatingActionButton: // 3. Action Button
-          currentHabit.isCompleted
+          floatingActionButton: currentHabit.isCompleted
               ? MyButton(
                   onPressed: () {
-                    // Memanggil showDialog agar Alert muncul
                     showDialog(
                       context: context,
                       builder: (dialogContext) => AlertDialog(
@@ -554,11 +548,10 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
     );
   }
 
-  // Widget untuk tombol filter periode
   Widget _buildPeriodButton(BuildContext context, String label, String value) {
     final isSelected = _selectedPeriod == value;
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -568,13 +561,13 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? colorScheme.primary 
+          color: isSelected
+              ? colorScheme.primary
               : colorScheme.surface.withOpacity(0.5),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected 
-                ? colorScheme.primary 
+            color: isSelected
+                ? colorScheme.primary
                 : colorScheme.outlineVariant,
           ),
         ),
@@ -582,9 +575,7 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
           child: Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-              color: isSelected 
-                  ? colorScheme.onPrimary 
-                  : colorScheme.onSurface,
+              color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
           ),
@@ -593,7 +584,6 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
     );
   }
 
-  // Helper Widget: Card Statistik
   Widget _buildStatCard(
     BuildContext context,
     String title,
@@ -606,6 +596,9 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.secondary,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -641,7 +634,6 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
     );
   }
 
-  // Helper Widget: Baris Informasi
   Widget _buildInfoRow(
     BuildContext context,
     IconData icon,

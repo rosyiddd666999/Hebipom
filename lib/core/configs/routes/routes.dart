@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hebipom/futures/presentation/page/pomodoro/pomodoro_page.dart';
 import 'package:hebipom/futures/presentation/page/sidebar/items/history_page.dart';
-import 'package:hebipom/futures/presentation/page/sidebar/items/notif_page.dart';
+import 'package:hebipom/futures/presentation/page/sidebar/items/notif_permissions_page.dart';
 import 'package:hebipom/futures/presentation/page/sidebar/items/theme_page.dart';
 import '../../../futures/presentation/page/habit/habit_page.dart';
 import '../../../futures/presentation/page/sidebar/items/statistic_page.dart';

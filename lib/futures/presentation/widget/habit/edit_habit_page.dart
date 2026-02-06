@@ -3,11 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/configs/themes/themes.dart';
 import '../../../../core/services/notivication_service.dart';
 import '../../../../core/utils/vectors.dart';
 import '../../../domain/entity/habit.dart';
 import '../../cubit/habit_cubit.dart';
+import '../../page/habit/habit_page.dart';
 
 class EditHabitPage extends StatefulWidget {
   final Habit habit;
@@ -450,11 +452,14 @@ class _EditHabitPageState extends State<EditHabitPage> {
         minute: selectedTime.minute,
       );
 
+      await notifService.scheduleStreakAlert(updatedHabit);
+
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Habit updated!'),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -474,8 +479,11 @@ class _EditHabitPageState extends State<EditHabitPage> {
           TextButton(
             onPressed: () {
               context.read<HabitCubit>().deleteHabit(widget.habit.id);
-              Navigator.pop(context); // close dialog
-              Navigator.pop(context); // back to list
+              if (context.mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const HabitPage()),
+                );
+              }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),

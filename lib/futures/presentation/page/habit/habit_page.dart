@@ -196,7 +196,7 @@ class _HabitPageState extends State<HabitPage> {
                               horizontal: 20.0,
                             ),
                             child: _buildEmptyState(
-                              "Belum ada habit aktif.\nKlik tombol '+' di kanan atas\nuntuk menambahkan.",
+                              "Belum ada habit aktif.\nKlik tombol ' + ' di kanan atas\nuntuk menambahkan.",
                             ),
                           )
                         else if (displayedHabits.isEmpty)
@@ -232,10 +232,19 @@ class _HabitPageState extends State<HabitPage> {
 
   Widget _buildEmptyState(String message) {
     return Center(
-      child: Text(
-        message,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodyMedium,
+      child: Column(
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 55,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ],
       ),
     );
   }
@@ -288,6 +297,7 @@ class _HabitPageState extends State<HabitPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: Theme.of(context).colorScheme.secondary,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       padding: const EdgeInsets.all(16),
       child: GridView.builder(

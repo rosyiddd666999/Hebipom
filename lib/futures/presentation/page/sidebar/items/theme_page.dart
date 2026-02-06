@@ -46,6 +46,12 @@ class _ThemePageState extends State<ThemePage> {
                   ),
                   tileColor: Theme.of(context).colorScheme.secondary,
                   activeColor: Theme.of(context).colorScheme.onSurface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
                 ),
               ),
             ),

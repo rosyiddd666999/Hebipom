@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hebipom/core/configs/themes/themes.dart';
+import '../../../../core/services/notivication_service.dart';
 import '../../../../core/utils/vectors.dart';
 import '../../../domain/entity/habit.dart';
 import '../../cubit/habit_cubit.dart';
@@ -54,6 +55,15 @@ class HabitItem extends StatelessWidget {
                     context.read<HabitCubit>().markHabitAsNotCompleted(
                       habit.id,
                     );
+                    context.read<NotificationService>().scheduleNotification(
+                      id: habit.id,
+                      title: 'Habit Reminder: ${habit.name.toUpperCase()}',
+                      body: habit.spiritQuote ?? 'Time to work on your habit!',
+                      hour: habit.timeReminder.hour,
+                      minute: habit.timeReminder.minute,
+                    );
+
+                    context.read<NotificationService>().scheduleStreakAlert(habit);
                   },
                 )
               : SlidableAction(
@@ -71,6 +81,9 @@ class HabitItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.secondary,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         child: Row(
           children: [

@@ -13,6 +13,7 @@ class PermissionChecker {
     // Jika sudah pernah complete, tetap validate ulang permission-nya
     // (case: user revoke permission setelah setup)
     final permissions = await notificationService.checkAllPermissions();
+    
     final allGranted = permissions.values.every((granted) => granted);
 
     // Update SharedPreferences based on current state

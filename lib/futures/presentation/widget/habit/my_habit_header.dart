@@ -16,7 +16,7 @@ class MyHabitHeader extends StatelessWidget {
           width: 50,
           decoration: BoxDecoration(
             border: Border.all(
-              color: Theme.of(context).colorScheme.surface,
+              color: Theme.of(context).colorScheme.outlineVariant,
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(16),

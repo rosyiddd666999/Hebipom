@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -12,7 +13,7 @@ class HabitCubit extends Cubit<List<Habit>> {
   final HabitRepo habitRepo;
   final NotificationService notificationService;
   static const platform = MethodChannel('com.example.hebipom/permissions');
-  
+
   HabitCubit(this.habitRepo, this.notificationService) : super([]) {
     loadHabits();
     _setupMethodCallHandler();
@@ -32,10 +33,9 @@ class HabitCubit extends Cubit<List<Habit>> {
       final habits = await habitRepo.getAllHabits();
       emit(habits);
       _updateWidget(habits);
-      notificationService.alertFiveHourBeforeResetStreak(habits);
     } catch (e) {
       if (kDebugMode) {
-        print(e.toString());
+        log(e.toString());
       }
     }
   }
@@ -54,15 +54,16 @@ class HabitCubit extends Cubit<List<Habit>> {
     await habitRepo.deleteHabit(habitId);
     loadHabits();
     notificationService.cancelNotification(habitId);
-    notificationService.cancelNotification(habitId + 10000);
+    notificationService.cancelHabitAlertNotification(habitId);
   }
 
   Future<void> markHabitAsCompleted(int habitId) async {
     await habitRepo.markHabitAsCompleted(habitId);
     loadHabits();
+    notificationService.cancelNotification(habitId);
   }
 
-  Future<void> markHabitAsNotCompleted (int habitId) async {
+  Future<void> markHabitAsNotCompleted(int habitId) async {
     await habitRepo.markHabitAsUncompleted(habitId);
     loadHabits();
   }
@@ -74,7 +75,8 @@ class HabitCubit extends Cubit<List<Habit>> {
             'id': h.id.toString(),
             'name': h.name,
             'isCompleted': h.isCompleted,
-            'timeReminder': '${h.timeReminder.hour.toString().padLeft(2, '0')}:${h.timeReminder.minute.toString().padLeft(2, '0')}',
+            'timeReminder':
+                '${h.timeReminder.hour.toString().padLeft(2, '0')}:${h.timeReminder.minute.toString().padLeft(2, '0')}',
           },
         )
         .toList();
@@ -87,7 +89,7 @@ class HabitCubit extends Cubit<List<Habit>> {
     try {
       final habitId = int.parse(habitIdStr);
       final habit = state.firstWhere((h) => h.id == habitId);
-      
+
       if (habit.isCompleted) {
         await markHabitAsNotCompleted(habitId);
       } else {

@@ -95,7 +95,9 @@ class _AddHabitPageState extends State<AddHabitPage> {
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold,
                 fontSize: isSelected ? 14 : 12,
-                color: isSelected ? Theme.of(context).colorScheme.secondary : color,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.secondary
+                    : color,
               ),
             ),
           ),
@@ -126,6 +128,7 @@ class _AddHabitPageState extends State<AddHabitPage> {
                 SnackBar(
                   content: const Text('Habit added successfully!'),
                   backgroundColor: Colors.green.shade500,
+                  behavior: SnackBarBehavior.floating,
                 ),
               );
             },
@@ -417,6 +420,8 @@ class _AddHabitPageState extends State<AddHabitPage> {
           minute: selectedTime.minute,
         );
 
+        await notifService.scheduleStreakAlert(newHabit);
+
         // Cek mounted lagi setelah async
         if (!mounted) return;
 
@@ -426,8 +431,12 @@ class _AddHabitPageState extends State<AddHabitPage> {
         // Show snackbar di parent context (bukan context yang sudah di-pop)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Habit "${newHabit.name}" added successfully!'),
+            content: Text(
+              'Habit "${newHabit.name}" added successfully!',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             backgroundColor: Colors.green.shade800,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } catch (e) {
@@ -435,8 +444,12 @@ class _AddHabitPageState extends State<AddHabitPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(
+              'Error: $e',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             backgroundColor: Colors.red.shade800,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }

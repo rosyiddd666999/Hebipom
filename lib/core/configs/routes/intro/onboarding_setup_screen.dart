@@ -1,3 +1,4 @@
+import 'package:auto_start_flutter/auto_start_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +31,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     'notification': false,
     'exactAlarm': false,
     'batteryOptimization': false,
+    'autoStart': false,
   };
 
   bool _isLoading = false;
@@ -40,7 +42,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkPermissions();
+    _initializePermissions();
   }
 
   @override
@@ -55,30 +57,39 @@ class _OnboardingPageState extends State<OnboardingPage>
     super.didChangeAppLifecycleState(state);
 
     if (state == AppLifecycleState.resumed && _isRequestingPermission) {
-      debugPrint('📱 App resumed from settings, re-checking permissions...');
+      debugPrint('App resumed from settings, re-checking permissions...');
       _isRequestingPermission = false;
       _checkPermissions();
     }
   }
 
+  Future<void> _initializePermissions() async {
+    await _checkPermissions();
+  }
+
   Future<void> _checkPermissions() async {
     if (!mounted) return;
-
     setState(() => _isLoading = true);
-    final permissions = await widget.notificationService.checkAllPermissions();
 
-    if (mounted) {
-      setState(() {
-        _permissions = permissions;
-        _isLoading = false;
-      });
+    try {
+      final permissions = await widget.notificationService
+          .checkAllPermissions();
 
-      final allGranted = _permissions.values.every((granted) => granted);
-      if (allGranted && _currentPage == 2) {
-        // ✅ Mark setup completed di SharedPreferences
-        await PermissionChecker.markSetupCompleted();
-        _showSuccessDialog();
+      if (mounted) {
+        setState(() {
+          _permissions = Map<String, bool>.from(permissions);
+          _isLoading = false;
+        });
+
+        final allGranted = _permissions.values.every((granted) => granted);
+
+        if (allGranted && _currentPage == 2) {
+          await PermissionChecker.markSetupCompleted();
+          _showSuccessDialog();
+        }
       }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -88,43 +99,57 @@ class _OnboardingPageState extends State<OnboardingPage>
     setState(() => _isLoading = true);
 
     try {
-      // Step 1: Request Notification
       if (!_permissions['notification']!) {
-        final granted =
-            await widget.notificationService.requestNotificationPermission();
-        setState(() => _permissions['notification'] = granted);
+        debugPrint('Requesting notification permission...');
+        final granted = await widget.notificationService
+            .requestNotificationPermission();
+
+        if (mounted) {
+          setState(() => _permissions['notification'] = granted);
+        }
 
         if (!granted) {
           _showPermissionDeniedDialog('Notifikasi');
-          setState(() => _isLoading = false);
+          if (mounted) setState(() => _isLoading = false);
           return;
         }
       }
 
-      // Step 2: Request Exact Alarm
       if (!_permissions['exactAlarm']!) {
+        debugPrint('Requesting exact alarm permission...');
         setState(() => _isRequestingPermission = true);
         await widget.notificationService.requestExactAlarmPermission();
-        setState(() => _isLoading = false);
-        return; // Wait for user to come back from settings
+        if (mounted) setState(() => _isLoading = false);
+        return;
       }
 
-      // Step 3: Request Battery Optimization
       if (!_permissions['batteryOptimization']!) {
+        debugPrint('Requesting battery optimization permission...');
         setState(() => _isRequestingPermission = true);
-        await widget.notificationService
-            .requestBatteryOptimizationPermission();
-        setState(() => _isLoading = false);
-        return; // Wait for user to come back from settings
+        await widget.notificationService.requestBatteryOptimizationPermission();
+        if (mounted) setState(() => _isLoading = false);
+        return;
       }
 
-      // All permissions granted
+      if (!_permissions['autoStart']!) {
+        final isAvailable = await isAutoStartAvailable ?? false;
+        if (isAvailable) {
+          setState(() => _isRequestingPermission = true);
+          await widget.notificationService.requestAutoStartPermission();
+          return;
+        } else {
+          await widget.notificationService.confirmAutoStartEnabled();
+          await _checkPermissions();
+        }
+      }
+
       await _checkPermissions();
     } catch (e) {
+      debugPrint('❌ Error in permission request flow: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -135,7 +160,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('⚠️ Izin Ditolak'),
+        title: const Text('Izin Ditolak'),
         content: Text(
           'Izin $permissionName diperlukan agar aplikasi dapat mengirim pengingat tepat waktu. '
           'Silakan aktifkan di pengaturan aplikasi.',
@@ -155,7 +180,7 @@ class _OnboardingPageState extends State<OnboardingPage>
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('✅ Berhasil!'),
+        title: const Text('Berhasil!'),
         content: const Text(
           'Semua izin telah diberikan. Aplikasi siap digunakan!',
         ),
@@ -181,6 +206,8 @@ class _OnboardingPageState extends State<OnboardingPage>
         return 'Alarm Tepat Waktu';
       case 'batteryOptimization':
         return 'Optimasi Baterai';
+      case 'autoStart':
+        return 'Auto Start';
       default:
         return key;
     }
@@ -194,6 +221,8 @@ class _OnboardingPageState extends State<OnboardingPage>
         return Icons.alarm;
       case 'batteryOptimization':
         return Icons.battery_full;
+      case 'autoStart':
+        return Icons.power_settings_new;
       default:
         return Icons.settings;
     }
@@ -207,6 +236,8 @@ class _OnboardingPageState extends State<OnboardingPage>
         return 'Notifikasi muncul tepat waktu';
       case 'batteryOptimization':
         return 'Agar app tetap jalan di background';
+      case 'autoStart':
+        return 'Aplikasi otomatis berjalan saat reboot';
       default:
         return '';
     }
@@ -220,6 +251,8 @@ class _OnboardingPageState extends State<OnboardingPage>
         return 'Anda akan diarahkan ke pengaturan. Aktifkan "Alarms & reminders" untuk aplikasi ini';
       case 'batteryOptimization':
         return 'Anda akan diarahkan ke pengaturan. Pilih "Don\'t optimize" atau "Unrestricted"';
+      case 'autoStart':
+        return 'Anda akan diarahkan ke pengaturan. Aktifkan "Autostart" atau "Auto-launch" untuk aplikasi ini';
       default:
         return '';
     }
@@ -264,7 +297,6 @@ class _OnboardingPageState extends State<OnboardingPage>
                 ],
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
               child: Row(
@@ -291,21 +323,21 @@ class _OnboardingPageState extends State<OnboardingPage>
                     )
                   else
                     MyButton(
-                      onPressed:  allGranted
-                              ? () async {
-                                  await PermissionChecker.markSetupCompleted();
-                                  widget.onCompleted?.call();
-                                  if (mounted) {
-                                    // ignore: use_build_context_synchronously
-                                    context.goNamed('habit');
-                                  }
-                                }
-                              : _requestPermissionsSequentially,
+                      onPressed: allGranted
+                          ? () async {
+                              await PermissionChecker.markSetupCompleted();
+                              widget.onCompleted?.call();
+                              if (mounted) {
+                                // ignore: use_build_context_synchronously
+                                context.goNamed('habit');
+                              }
+                            }
+                          : _requestPermissionsSequentially,
                       label: _isLoading
                           ? "MEMPROSES..."
                           : allGranted
-                              ? "MULAI"
-                              : "IZINKAN",
+                          ? "MULAI"
+                          : "IZINKAN",
                     ),
                 ],
               ),
@@ -372,7 +404,7 @@ class _OnboardingPageState extends State<OnboardingPage>
           const SizedBox(height: 12),
           Text(
             allGranted
-                ? "✅ Semua sudah siap! Klik tombol Mulai di bawah."
+                ? "Semua sudah siap! Klik tombol Mulai di bawah."
                 : "Untuk memastikan notifikasi muncul tepat waktu, kami membutuhkan izin berikut:",
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -382,44 +414,11 @@ class _OnboardingPageState extends State<OnboardingPage>
           ),
           const SizedBox(height: 30),
 
-          ..._permissions.entries.map((entry) {
-            final isGranted = entry.value;
-            return Card(
-              elevation: 0,
-              color: isGranted
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                  : Theme.of(context).colorScheme.secondary,
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ExpansionTile(
-                leading: Icon(
-                  _getPermissionIcon(entry.key),
-                  color: isGranted
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.grey,
-                ),
-                title: Text(_getPermissionLabel(entry.key)),
-                subtitle: Text(
-                  _getPermissionDescription(entry.key),
-                  style: const TextStyle(fontSize: 12),
-                ),
-                trailing: Icon(
-                  isGranted ? Icons.check_circle : Icons.cancel,
-                  color: isGranted
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.red,
-                ),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      _getPermissionInstruction(entry.key),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          // Permission cards
+          _buildPermissionCard('notification'),
+          _buildPermissionCard('exactAlarm'),
+          _buildPermissionCard('batteryOptimization'),
+          _buildPermissionCard('autoStart'),
 
           const SizedBox(height: 20),
 
@@ -434,6 +433,44 @@ class _OnboardingPageState extends State<OnboardingPage>
             ),
           ),
           if (_showManualSteps) _buildManualStepsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPermissionCard(String key) {
+    final isGranted = _permissions[key] ?? false;
+
+    return Card(
+      elevation: 0,
+      color: isGranted
+          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+          : Theme.of(context).colorScheme.secondary,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        leading: Icon(
+          _getPermissionIcon(key),
+          color: isGranted
+              ? Theme.of(context).colorScheme.primary
+              : Colors.grey,
+        ),
+        title: Text(_getPermissionLabel(key)),
+        subtitle: Text(
+          _getPermissionDescription(key),
+          style: const TextStyle(fontSize: 12),
+        ),
+        trailing: Icon(
+          isGranted ? Icons.check_circle : Icons.cancel,
+          color: isGranted ? Theme.of(context).colorScheme.primary : Colors.red,
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              _getPermissionInstruction(key),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
         ],
       ),
     );
@@ -463,19 +500,19 @@ class _OnboardingPageState extends State<OnboardingPage>
             const Divider(),
             _manualText(
               "Xiaomi/POCO/Redmi",
-              "Settings > Apps > Manage apps > Hebipom > Autostart (ON)",
+              "Settings > Apps > Manage apps > Hebipom > Autostart (ON)\nSettings > AutoStart apps > Hebipom (Allow)",
             ),
             _manualText(
               "Samsung",
-              "Settings > Apps > Hebipom > Battery > Unrestricted",
+              "Settings > Apps > Hebipom > Battery > Unrestricted\nSettings > AutoStart apps > Hebipom (Allow)",
             ),
             _manualText(
               "Oppo/Realme",
-              "Settings > Battery > App power management > Hebipom (Allow)",
+              "Settings > Battery > App power management > Hebipom (Allow)\nSettings > AutoStart apps > Hebipom (Allow)",
             ),
             _manualText(
               "Vivo",
-              "Settings > Battery > Background power consumption > Hebipom (High)",
+              "Settings > Battery > Background power consumption > Hebipom (High)\nSettings > AutoStart apps > Hebipom (Allow)",
             ),
           ],
         ),
@@ -484,27 +521,27 @@ class _OnboardingPageState extends State<OnboardingPage>
   }
 
   Widget _manualText(String brand, String instruction) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.smartphone, size: 14),
-            const SizedBox(width: 8),
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 11, color: Colors.black87),
-                  children: [
-                    TextSpan(
-                      text: '$brand: ',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    TextSpan(text: instruction),
-                  ],
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.smartphone, size: 14),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 11, color: Colors.black87),
+              children: [
+                TextSpan(
+                  text: '$brand: ',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ),
+                TextSpan(text: instruction),
+              ],
             ),
-          ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }

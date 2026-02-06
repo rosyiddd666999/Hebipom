@@ -131,17 +131,17 @@ class ThemeHabit {
           fontSize: 16,
           fontWeight: FontWeight.w800,
           letterSpacing: 2,
-          color: isLight ? Colors.grey.shade600 : Colors.grey.shade400,
+          color: isLight ? Colors.grey.shade800 : Colors.grey.shade200,
         ),
         bodyMedium: TextStyle(fontSize: 14, color: onSurfaceColor),
         bodySmall: TextStyle(
           fontSize: 12,
-          color: isLight ? Colors.grey.shade600 : Colors.grey.shade400,
+          color: isLight ? Colors.grey.shade800 : Colors.grey.shade200,
         ),
       ),
 
       iconTheme: IconThemeData(
-        color: isLight ? Colors.grey.shade600 : Colors.grey.shade400,
+        color: isLight ? Colors.grey.shade800 : Colors.grey.shade200,
       ),
     );
   }
