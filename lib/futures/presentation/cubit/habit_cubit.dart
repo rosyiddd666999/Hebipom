@@ -4,7 +4,7 @@ import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hebipom/core/services/notivication_service.dart';
+import 'package:hebipom/core/services/notification_service.dart';
 import 'package:hebipom/futures/domain/repo/habit_repo.dart';
 import 'package:home_widget/home_widget.dart';
 import '../../domain/entity/habit.dart';
@@ -59,8 +59,21 @@ class HabitCubit extends Cubit<List<Habit>> {
 
   Future<void> markHabitAsCompleted(int habitId) async {
     await habitRepo.markHabitAsCompleted(habitId);
-    loadHabits();
     notificationService.cancelNotification(habitId);
+
+    final habits = await habitRepo.getAllHabits();
+    final habit = habits.firstWhere((h) => h.id == habitId);
+
+    await notificationService.scheduleNotification(
+      id: habitId,
+      title: 'Habit Reminder: ${habit.name.toUpperCase()}',
+      body: habit.spiritQuote ?? 'Time to work on your habit!',
+      hour: habit.timeReminder.hour,
+      minute: habit.timeReminder.minute,
+      forceNextDay: true,
+    );
+    
+    loadHabits();
   }
 
   Future<void> markHabitAsNotCompleted(int habitId) async {

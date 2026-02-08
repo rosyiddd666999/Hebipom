@@ -7,12 +7,10 @@ import 'package:hebipom/futures/presentation/cubit/pomodoro_cubit.dart';
 import 'package:hebipom/futures/presentation/cubit/theme_cubit.dart';
 import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/configs/routes/routes.dart';
 import 'core/configs/themes/themes.dart';
-import 'core/services/notivication_service.dart';
+import 'core/services/notification_service.dart';
 import 'futures/data/model/isar_habit.dart';
 import 'futures/data/model/isar_pomodoro.dart';
 import 'futures/data/repo/habit_repo_impl.dart';
@@ -28,10 +26,6 @@ void notificationTapBackground(NotificationResponse response) {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    tz.initializeTimeZones();
-    final jakarta = tz.getLocation('Asia/Jakarta');
-    tz.setLocalLocation(jakarta);
-
     final dir = await getApplicationDocumentsDirectory();
     final isar = await Isar.open([
       HabitIsarSchema,

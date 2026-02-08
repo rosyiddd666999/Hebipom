@@ -105,7 +105,8 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
         spots.add(FlSpot((6 - i).toDouble(), rate));
       }
     } else {
-      for (int i = 25; i >= 0; i -= 5) {
+      // 30 hari terakhir
+      for (int i = 29; i >= 0; i--) {
         final date = DateTime(now.year, now.month, now.day - i);
 
         final completedUntilDate = habit.completedDates
@@ -120,7 +121,8 @@ class _HabitDetailPageState extends State<HabitDetailPage> {
             ? (completedUntilDate / daysSinceStart) * 100
             : 0.0;
 
-        spots.add(FlSpot(((25 - i) / 5).toDouble(), rate));
+        // X-axis: 0-29 merepresentasikan 30 hari
+        spots.add(FlSpot((29 - i).toDouble(), rate));
       }
     }
 

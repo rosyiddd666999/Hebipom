@@ -2,13 +2,13 @@ import 'dart:io';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../../main.dart';
 import '../../futures/domain/entity/habit.dart';
-import '../utils/habit_utils.dart';
 import 'package:auto_start_flutter/auto_start_flutter.dart';
 
 class NotificationService {
@@ -150,7 +150,18 @@ class NotificationService {
 
     try {
       tz.initializeTimeZones();
-      tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
+
+      final timeZoneData = await FlutterTimezone.getLocalTimezone();
+
+      final String timeZoneName = timeZoneData
+          .toString()
+          .split('(')[1]
+          .split(',')[0];
+
+      debugPrint('Timezone detected: $timeZoneName');
+
+      final location = tz.getLocation(timeZoneName);
+      tz.setLocalLocation(location);
 
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@mipmap/launcher_icon');
@@ -225,6 +236,7 @@ class NotificationService {
     required String body,
     required int hour,
     required int minute,
+    bool forceNextDay = false,
   }) async {
     if (!_isInitialized) {
       log('Notification Service not initialized.');
@@ -251,7 +263,7 @@ class NotificationService {
       minute,
     );
 
-    if (scheduledDate.isBefore(now)) {
+    if (forceNextDay || scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
@@ -276,27 +288,22 @@ class NotificationService {
       rethrow;
     }
   }
-  // Di dalam NotificationService
 
-  /// Menjadwalkan alert 5 jam sebelum reset untuk satu habit tertentu
   Future<void> scheduleStreakAlert(Habit habit) async {
     final now = tz.TZDateTime.now(tz.local);
 
-    // 1. Tentukan Deadline (Tengah malam nanti/besok pagi jam 00:00)
     final deadline = tz.TZDateTime(tz.local, now.year, now.month, now.day + 1);
 
-    // 2. Waktu Alert (19:00 atau 7 malam)
-    final alertTime = deadline.subtract(const Duration(hours: 2));
+    final alertTime = deadline.subtract(const Duration(hours: 4));
 
-    // 3. Batalkan jadwal lama (ID khusus streak: habit.id + 10000)
     await notificationsPlugin.cancel(habit.id + 10000);
 
-    // 4. Jika habit SUDAH selesai hari ini, tidak perlu pasang alert untuk hari ini
+    // if completed, don't schedule
     if (habit.isCompleted) return;
 
     try {
       if (alertTime.isBefore(now)) {
-        // Jika sudah lewat jam 7 malam, munculkan notifikasi sekarang juga
+        // Jika sudah lewat jam 8 malam, munculkan notifikasi sekarang juga
         await notificationsPlugin.show(
           habit.id + 10000,
           'Streak Dalam Bahaya!',
@@ -304,16 +311,16 @@ class NotificationService {
           _notificationDetails(habit.id + 10000),
         );
       } else {
-        // Jika belum jam 7 malam, jadwalkan secara eksak
+        // Jika belum jam 8 malam, jadwalkan secara eksak
         await notificationsPlugin.zonedSchedule(
           habit.id + 10000,
           'Peringatan Streak',
-          '5 Jam lagi streak "${habit.name}" kamu akan reset!',
+          '4 Jam lagi streak "${habit.name}" kamu akan reset!',
           alertTime,
           _notificationDetails(habit.id + 10000),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents:
-              DateTimeComponents.time, // Berulang setiap hari jam 7 malam
+              DateTimeComponents.time, // Berulang setiap hari jam 8 malam
         );
       }
       log('Streak alert scheduled for ${habit.name} at $alertTime');

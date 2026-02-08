@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:hebipom/core/utils/vectors.dart';
 import '../../../../core/configs/themes/themes.dart';
-import '../../../../core/services/notivication_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../domain/entity/habit.dart';
 import '../../cubit/habit_cubit.dart';
 

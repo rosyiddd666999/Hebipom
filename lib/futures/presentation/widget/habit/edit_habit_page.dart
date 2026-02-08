@@ -3,9 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/configs/themes/themes.dart';
-import '../../../../core/services/notivication_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/utils/vectors.dart';
 import '../../../domain/entity/habit.dart';
 import '../../cubit/habit_cubit.dart';
@@ -446,8 +445,8 @@ class _EditHabitPageState extends State<EditHabitPage> {
       );
       await notifService.scheduleNotification(
         id: updatedHabit.id,
-        title: 'Reminder: ${updatedHabit.name}',
-        body: 'Time for your habit!',
+        title: 'Habit Reminder: ${updatedHabit.name.toUpperCase()}',
+        body: updatedHabit.spiritQuote ?? 'Time to work on your habit!',
         hour: selectedTime.hour,
         minute: selectedTime.minute,
       );
