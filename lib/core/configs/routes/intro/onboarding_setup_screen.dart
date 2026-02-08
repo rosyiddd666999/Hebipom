@@ -6,7 +6,7 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../services/permission_check.dart';
 import '../../../widgets/my_button.dart';
 import '../routes.dart';
-import '../../../services/notivication_service.dart';
+import '../../../services/notification_service.dart';
 
 class OnboardingPage extends StatefulWidget {
   final NotificationService notificationService;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../../core/services/notivication_service.dart';
+import '../../../../../core/services/notification_service.dart';
 
 class PermissionPage extends StatefulWidget {
   final NotificationService notificationService;

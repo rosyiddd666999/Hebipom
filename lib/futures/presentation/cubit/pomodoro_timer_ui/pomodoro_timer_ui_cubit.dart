@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import '../../../../core/services/notivication_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../domain/entity/pomodoro.dart';
 import '../../../domain/repo/pomodoro_repo.dart';
 

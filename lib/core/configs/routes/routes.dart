@@ -7,7 +7,7 @@ import 'package:hebipom/futures/presentation/page/sidebar/items/theme_page.dart'
 import '../../../futures/presentation/page/habit/habit_page.dart';
 import '../../../futures/presentation/page/sidebar/items/statistic_page.dart';
 import 'intro/onboarding_setup_screen.dart';
-import '../../services/notivication_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/permission_check.dart';
 import 'intro/splash_screen.dart';
 
