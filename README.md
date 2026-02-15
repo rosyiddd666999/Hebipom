@@ -1,3 +1,4 @@
 My Startup
 
-©ABdul Rosyid
+©Abdul Rosyid
+
