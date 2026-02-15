@@ -1,4 +1,5 @@
 My Startup
 
-©Abdul Rosyid
+Habit Streak Offline Database and Reminder
 
+©Abdul Rosyid
